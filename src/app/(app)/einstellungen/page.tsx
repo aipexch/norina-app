@@ -1,15 +1,64 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useSemesters } from "@/hooks/useSemester";
 import TopBar from "@/components/layout/TopBar";
-import { Plus, Check, Trash2, Clock } from "lucide-react";
+import { Plus, Check, Trash2, Clock, Download, Upload } from "lucide-react";
 import { formatDateShort } from "@/lib/date-utils";
 import type { TimeSlot } from "@/types";
+
+const STORAGE_KEYS = ["norina_semesters", "norina_timetable", "norina_records"] as const;
 
 export default function EinstellungenPage() {
   const { semesters, activeSemester, createSemester, updateSemester, deleteSemester } = useSemesters();
   const [showForm, setShowForm] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function handleExport() {
+    const data: Record<string, unknown> = {};
+    for (const key of STORAGE_KEYS) {
+      const raw = localStorage.getItem(key);
+      if (raw !== null) {
+        try {
+          data[key] = JSON.parse(raw);
+        } catch {
+          data[key] = raw;
+        }
+      }
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const today = new Date().toISOString().slice(0, 10);
+    a.download = `norina-backup-${today}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target?.result as string);
+        for (const key of STORAGE_KEYS) {
+          if (key in data) {
+            localStorage.setItem(key, JSON.stringify(data[key]));
+          }
+        }
+        window.location.reload();
+      } catch {
+        alert("Ungültige Datei. Bitte eine gültige Norina-Backup-Datei auswählen.");
+      }
+    };
+    reader.readAsText(file);
+    // Reset so the same file can be re-imported
+    e.target.value = "";
+  }
 
   return (
     <>
@@ -123,6 +172,38 @@ export default function EinstellungenPage() {
             />
           </section>
         )}
+
+        {/* Daten Section */}
+        <section>
+          <p className="mb-2 px-1 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Daten
+          </p>
+          <div className="overflow-hidden rounded-xl bg-card">
+            <button
+              onClick={handleExport}
+              className="flex w-full items-center gap-3 px-4 py-3 text-[15px] font-medium active:bg-muted/50 transition-colors"
+            >
+              <Download className="h-5 w-5 text-primary" />
+              <span>Backup exportieren</span>
+            </button>
+            <div className="border-t border-border/30">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex w-full items-center gap-3 px-4 py-3 text-[15px] font-medium active:bg-muted/50 transition-colors"
+              >
+                <Upload className="h-5 w-5 text-primary" />
+                <span>Backup importieren</span>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleImport}
+                className="hidden"
+              />
+            </div>
+          </div>
+        </section>
 
       </div>
     </>
