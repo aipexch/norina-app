@@ -1,10 +1,23 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { getUserId } from "@/lib/auth-helpers";
 import { todayISO } from "@/lib/date-utils";
 import type { TimeRecord, TimerState } from "@/types";
+
+const STORAGE_KEY = "norina_records";
+
+function load(): TimeRecord[] {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+}
+
+function save(data: TimeRecord[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
 
 export function useTimer(semesterId: string | null) {
   const [state, setState] = useState<TimerState>("idle");
@@ -12,31 +25,20 @@ export function useTimer(semesterId: string | null) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [loading, setLoading] = useState(true);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const supabase = createClient();
 
   const calcElapsed = useCallback((clockIn: string) => {
     return Math.floor((Date.now() - new Date(clockIn).getTime()) / 1000);
   }, []);
 
-  const checkRunningTimer = useCallback(async () => {
-    const userId = await getUserId();
-
-    const { data } = await supabase
-      .from("time_records")
-      .select("*")
-      .eq("user_id", userId)
-      .is("clock_out", null)
-      .limit(1)
-      .single();
-
-    if (data) {
-      const record = data as TimeRecord;
-      setActiveRecord(record);
+  const checkRunningTimer = useCallback(() => {
+    const running = load().find((r) => !r.clock_out) ?? null;
+    if (running) {
+      setActiveRecord(running);
       setState("running");
-      setElapsedSeconds(calcElapsed(record.clock_in));
+      setElapsedSeconds(calcElapsed(running.clock_in));
     }
     setLoading(false);
-  }, [supabase, calcElapsed]);
+  }, [calcElapsed]);
 
   useEffect(() => {
     checkRunningTimer();
@@ -48,7 +50,6 @@ export function useTimer(semesterId: string | null) {
         setElapsedSeconds(calcElapsed(activeRecord.clock_in));
       }, 1000);
     }
-
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -58,44 +59,39 @@ export function useTimer(semesterId: string | null) {
   }, [state, activeRecord, calcElapsed]);
 
   async function startTimer() {
-    const userId = await getUserId();
-
     const now = new Date().toISOString();
-    const { data, error } = await supabase
-      .from("time_records")
-      .insert({
-        user_id: userId,
-        semester_id: semesterId,
-        date: todayISO(),
-        clock_in: now,
-        is_manual: false,
-      })
-      .select()
-      .single();
-
-    if (error || !data) {
-      console.error("Timer starten fehlgeschlagen:", error);
-      return;
-    }
-
-    const record = data as TimeRecord;
-    setActiveRecord(record);
+    const newRecord: TimeRecord = {
+      id: crypto.randomUUID(),
+      user_id: "local",
+      semester_id: semesterId,
+      date: todayISO(),
+      clock_in: now,
+      clock_out: null,
+      break_minutes: 0,
+      is_manual: false,
+      notes: null,
+      created_at: now,
+      updated_at: now,
+    };
+    save([...load(), newRecord]);
+    setActiveRecord(newRecord);
     setState("running");
     setElapsedSeconds(0);
   }
 
-  async function stopTimer() {
-    if (!activeRecord) return;
-
+  async function stopTimer(): Promise<string | null> {
+    if (!activeRecord) return null;
     const now = new Date().toISOString();
-    await supabase
-      .from("time_records")
-      .update({ clock_out: now })
-      .eq("id", activeRecord.id);
-
+    const id = activeRecord.id;
+    save(
+      load().map((r) =>
+        r.id === id ? { ...r, clock_out: now, updated_at: now } : r
+      )
+    );
     setState("idle");
     setActiveRecord(null);
     setElapsedSeconds(0);
+    return id;
   }
 
   return {

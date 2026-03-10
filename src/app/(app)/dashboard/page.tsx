@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSemesters } from "@/hooks/useSemester";
 import { useTimer } from "@/hooks/useTimer";
 import { useTimetable } from "@/hooks/useTimetable";
@@ -13,33 +13,24 @@ import {
 } from "@/lib/calculations";
 import { formatElapsedTime, getGreeting, todayISO, formatWeekday, formatDateShort } from "@/lib/date-utils";
 import { Play, Square, BookOpen, TrendingUp, AlertCircle } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { BreakSheet } from "@/components/BreakSheet";
 import Link from "next/link";
 
 export default function DashboardPage() {
+  const [breakRecordId, setBreakRecordId] = useState<string | null>(null);
   const { activeSemester, loading: semesterLoading } = useSemesters();
   const { state, elapsedSeconds, startTimer, stopTimer, loading: timerLoading } = useTimer(
     activeSemester?.id ?? null
   );
   const { entries } = useTimetable(activeSemester?.id ?? null);
-  const { records, refetch: refetchRecords } = useTimeRecords(activeSemester?.id ?? null);
-  const [userName, setUserName] = useState("");
-
-  const supabase = createClient();
-
-  useEffect(() => {
-    async function fetchUser() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user?.user_metadata?.display_name) {
-        setUserName(user.user_metadata.display_name);
-      }
-    }
-    fetchUser();
-  }, [supabase]);
+  const { records, refetch: refetchRecords, updateRecord } = useTimeRecords(activeSemester?.id ?? null);
 
   const today = todayISO();
   const todayRecords = records.filter((r) => r.date === today);
-  const scheduledMinutes = getScheduledMinutesForDate(new Date(), entries);
+  // Heute: nur wenn getrackt wurde, sonst 0 geplante Minuten
+  const scheduledMinutes = todayRecords.length > 0
+    ? getScheduledMinutesForDate(new Date(), entries)
+    : 0;
   const totalMinutesAtSchool = getTotalMinutesAtSchool(todayRecords);
   const overtimeMinutes = totalMinutesAtSchool - scheduledMinutes;
 
@@ -49,20 +40,22 @@ export default function DashboardPage() {
   monday.setHours(0, 0, 0, 0);
   const weekRecords = records.filter((r) => new Date(r.date) >= monday);
   const weekTotalMinutes = getTotalMinutesAtSchool(weekRecords);
-  const weekScheduledMinutes = Array.from({ length: 5 }, (_, i) => {
-    const day = new Date(monday);
-    day.setDate(monday.getDate() + i);
-    return day <= now ? getScheduledMinutesForDate(day, entries) : 0;
-  }).reduce((a, b) => a + b, 0);
+  // Nur getrackte Tage zählen
+  const trackedDatesThisWeek = new Set(weekRecords.map((r) => r.date));
+  const weekScheduledMinutes = Array.from(trackedDatesThisWeek).reduce((sum, dateStr) => {
+    return sum + getScheduledMinutesForDate(new Date(dateStr), entries);
+  }, 0);
   const weekOvertime = weekTotalMinutes - weekScheduledMinutes;
 
   async function handleTimerToggle() {
     if (state === "idle") {
       await startTimer();
+      setTimeout(() => refetchRecords(), 500);
     } else {
-      await stopTimer();
+      const id = await stopTimer();
+      setTimeout(() => refetchRecords(), 500);
+      if (id) setBreakRecordId(id);
     }
-    setTimeout(() => refetchRecords(), 500);
   }
 
   if (semesterLoading || timerLoading) {
@@ -74,14 +67,24 @@ export default function DashboardPage() {
   }
 
   return (
+    <>
+    {breakRecordId && (
+      <BreakSheet
+        onSelect={async (minutes) => {
+          await updateRecord(breakRecordId, { break_minutes: minutes });
+          setBreakRecordId(null);
+          refetchRecords();
+        }}
+        onSkip={() => setBreakRecordId(null)}
+      />
+    )}
     <div className="px-4 py-6 space-y-5">
       {/* Greeting */}
       <div>
         <h1 className="text-[28px] font-bold tracking-tight">
           {getGreeting()}
-          {userName ? `, ${userName}` : ""}
         </h1>
-        <p className="text-[15px] text-muted">
+        <p className="text-[15px] text-muted-foreground">
           {formatWeekday(new Date())}, {formatDateShort(new Date())}
         </p>
       </div>
@@ -109,12 +112,12 @@ export default function DashboardPage() {
         {/* Elapsed Time */}
         <p
           className={`text-[48px] font-light tabular-nums tracking-tight ${
-            state === "running" ? "text-accent" : "text-muted/40"
+            state === "running" ? "text-accent" : "text-muted-foreground/40"
           }`}
         >
           {formatElapsedTime(state === "running" ? elapsedSeconds : 0)}
         </p>
-        <p className="mb-6 text-[13px] text-muted">
+        <p className="mb-6 text-[13px] text-muted-foreground">
           {state === "running" ? "Timer läuft" : "Bereit"}
         </p>
 
@@ -134,14 +137,14 @@ export default function DashboardPage() {
             <Square className="h-7 w-7" fill="currentColor" strokeWidth={0} />
           )}
         </button>
-        <p className="mt-3 text-[13px] font-medium text-muted">
+        <p className="mt-3 text-[13px] font-medium text-muted-foreground">
           {state === "idle" ? "Starten" : "Stoppen"}
         </p>
       </div>
 
       {/* Today's Summary */}
       <div className="space-y-2">
-        <h2 className="px-1 text-[13px] font-semibold uppercase tracking-wider text-muted">
+        <h2 className="px-1 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
           Heute
         </h2>
         <div className="grid grid-cols-3 gap-2">
@@ -151,7 +154,7 @@ export default function DashboardPage() {
             label="Lektionen"
           />
           <SummaryCard
-            icon={<TrendingUp className="h-[18px] w-[18px] text-muted" />}
+            icon={<TrendingUp className="h-[18px] w-[18px] text-muted-foreground" />}
             value={formatDuration(totalMinutesAtSchool)}
             label="An Schule"
           />
@@ -170,13 +173,13 @@ export default function DashboardPage() {
 
       {/* Week Summary */}
       <div className="space-y-2">
-        <h2 className="px-1 text-[13px] font-semibold uppercase tracking-wider text-muted">
+        <h2 className="px-1 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
           Diese Woche
         </h2>
         <div className="rounded-2xl bg-card p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[13px] text-muted">Überstunden</p>
+              <p className="text-[13px] text-muted-foreground">Überstunden</p>
               <p
                 className={`text-[28px] font-bold tracking-tight ${
                   weekOvertime > 0 ? "text-accent" : weekOvertime < 0 ? "text-primary" : "text-foreground"
@@ -186,7 +189,7 @@ export default function DashboardPage() {
               </p>
             </div>
             <div className="text-right">
-              <p className="text-[13px] text-muted">An Schule</p>
+              <p className="text-[13px] text-muted-foreground">An Schule</p>
               <p className="text-[22px] font-semibold tracking-tight">
                 {formatDuration(weekTotalMinutes)}
               </p>
@@ -194,7 +197,7 @@ export default function DashboardPage() {
           </div>
           {weekScheduledMinutes > 0 && (
             <div className="mt-4">
-              <div className="flex justify-between text-[11px] text-muted">
+              <div className="flex justify-between text-[11px] text-muted-foreground">
                 <span>Lektionen: {formatDuration(weekScheduledMinutes)}</span>
                 <span>Total: {formatDuration(weekTotalMinutes)}</span>
               </div>
@@ -214,6 +217,7 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }
 
@@ -238,7 +242,7 @@ function SummaryCard({
     >
       <div className="mb-1 flex justify-center">{icon}</div>
       <p className="text-[17px] font-semibold tracking-tight">{value}</p>
-      <p className="text-[11px] text-muted">{label}</p>
+      <p className="text-[11px] text-muted-foreground">{label}</p>
     </div>
   );
 }

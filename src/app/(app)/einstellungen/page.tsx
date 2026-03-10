@@ -28,7 +28,7 @@ export default function EinstellungenPage() {
         {/* Semester Section */}
         <section>
           <div className="mb-2 flex items-center justify-between px-1">
-            <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted">
+            <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
               Semester
             </h2>
             <button
@@ -76,10 +76,10 @@ export default function EinstellungenPage() {
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <p className="text-[15px] font-medium truncate">{semester.name}</p>
-                  <p className="text-[13px] text-muted">
+                  <p className="text-[13px] text-muted-foreground">
                     {formatDateShort(semester.start_date)} – {formatDateShort(semester.end_date)}
                   </p>
-                  <p className="text-[12px] text-muted">
+                  <p className="text-[12px] text-muted-foreground">
                     {semester.pensum_percent}% · {semester.lessons_per_week} Lekt./Wo · {semester.minutes_per_lesson}min
                   </p>
                 </div>
@@ -91,7 +91,7 @@ export default function EinstellungenPage() {
                       deleteSemester(semester.id);
                     }
                   }}
-                  className="shrink-0 rounded-full p-1.5 text-muted"
+                  className="shrink-0 rounded-full p-1.5 text-muted-foreground"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -100,8 +100,8 @@ export default function EinstellungenPage() {
 
             {semesters.length === 0 && !showForm && (
               <div className="px-4 py-8 text-center">
-                <p className="text-[15px] text-muted">Kein Semester vorhanden</p>
-                <p className="text-[13px] text-muted">
+                <p className="text-[15px] text-muted-foreground">Kein Semester vorhanden</p>
+                <p className="text-[13px] text-muted-foreground">
                   Erstelle ein Semester um loszulegen
                 </p>
               </div>
@@ -112,14 +112,14 @@ export default function EinstellungenPage() {
         {/* Active Semester Info */}
         {activeSemester && (
           <section>
-            <p className="mb-2 px-1 text-[13px] font-semibold uppercase tracking-wider text-muted">
+            <p className="mb-2 px-1 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
               Aktives Semester
             </p>
             <div className="rounded-xl bg-card px-4 py-3 mb-4">
               <p className="text-[15px]">
                 <span className="font-medium">{activeSemester.name}</span>
                 {" — "}
-                <span className="text-muted">
+                <span className="text-muted-foreground">
                   Neue Einträge werden diesem Semester zugeordnet.
                 </span>
               </p>
@@ -136,7 +136,7 @@ export default function EinstellungenPage() {
 
         {/* Account */}
         <section>
-          <p className="mb-2 px-1 text-[13px] font-semibold uppercase tracking-wider text-muted">
+          <p className="mb-2 px-1 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
             Account
           </p>
           <div className="overflow-hidden rounded-xl bg-card">
@@ -212,13 +212,13 @@ function SemesterForm({
           onChange={(e) => setName(e.target.value)}
           required
           placeholder="Bezeichnung (z.B. FS 2026)"
-          className="w-full bg-transparent text-[16px] outline-none placeholder:text-muted/50"
+          className="w-full bg-transparent text-[16px] outline-none placeholder:text-muted-foreground/50"
         />
       </div>
 
       <div className="grid grid-cols-2 border-b border-border/30">
         <div className="border-r border-border/30 px-4 py-2.5">
-          <label className="mb-0.5 block text-[11px] uppercase tracking-wider text-muted">Start</label>
+          <label className="mb-0.5 block text-[11px] uppercase tracking-wider text-muted-foreground">Start</label>
           <input
             type="date"
             value={startDate}
@@ -228,7 +228,7 @@ function SemesterForm({
           />
         </div>
         <div className="px-4 py-2.5">
-          <label className="mb-0.5 block text-[11px] uppercase tracking-wider text-muted">Ende</label>
+          <label className="mb-0.5 block text-[11px] uppercase tracking-wider text-muted-foreground">Ende</label>
           <input
             type="date"
             value={endDate}
@@ -241,7 +241,7 @@ function SemesterForm({
 
       <div className="grid grid-cols-3 border-b border-border/30">
         <div className="border-r border-border/30 px-4 py-2.5">
-          <label className="mb-0.5 block text-[11px] uppercase tracking-wider text-muted">Pensum %</label>
+          <label className="mb-0.5 block text-[11px] uppercase tracking-wider text-muted-foreground">Pensum %</label>
           <input
             type="number"
             value={pensum}
@@ -253,7 +253,7 @@ function SemesterForm({
           />
         </div>
         <div className="border-r border-border/30 px-4 py-2.5">
-          <label className="mb-0.5 block text-[11px] uppercase tracking-wider text-muted">Lekt./Wo</label>
+          <label className="mb-0.5 block text-[11px] uppercase tracking-wider text-muted-foreground">Lekt./Wo</label>
           <input
             type="number"
             value={lessons}
@@ -265,7 +265,7 @@ function SemesterForm({
           />
         </div>
         <div className="px-4 py-2.5">
-          <label className="mb-0.5 block text-[11px] uppercase tracking-wider text-muted">Min/Lekt.</label>
+          <label className="mb-0.5 block text-[11px] uppercase tracking-wider text-muted-foreground">Min/Lekt.</label>
           <input
             type="number"
             value={minutesPerLesson}
@@ -362,7 +362,7 @@ function TimeSlotsEditor({
               onChange={(e) => handleChange(i, "start", e.target.value)}
               className="flex-1 rounded-lg border border-border px-2 py-1.5 text-sm outline-none focus:border-primary bg-background"
             />
-            <span className="text-muted text-sm">–</span>
+            <span className="text-muted-foreground text-sm">–</span>
             <input
               type="time"
               value={slot.end}
@@ -371,7 +371,7 @@ function TimeSlotsEditor({
             />
             <button
               onClick={() => handleRemove(i)}
-              className="shrink-0 p-1.5 text-muted hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
+              className="shrink-0 p-1.5 text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
             >
               <Trash2 className="h-4 w-4" />
             </button>
@@ -380,7 +380,7 @@ function TimeSlotsEditor({
 
         <button
           onClick={handleAdd}
-          className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border py-2 text-sm text-muted hover:border-primary hover:text-primary transition-colors"
+          className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border py-2 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors"
         >
           <Plus className="h-4 w-4" />
           Neuer Zeitslot

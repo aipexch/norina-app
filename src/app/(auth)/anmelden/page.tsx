@@ -42,7 +42,7 @@ export default function AnmeldenPage() {
             <Clock className="h-9 w-9 text-white" strokeWidth={1.8} />
           </div>
           <h1 className="text-[28px] font-bold tracking-tight">Norina</h1>
-          <p className="mt-1 text-[15px] text-muted">Zeiterfassung für Lehrpersonen</p>
+          <p className="mt-1 text-[15px] text-muted-foreground">Zeiterfassung für Lehrpersonen</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -60,7 +60,7 @@ export default function AnmeldenPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              className="w-full border-b border-border/50 bg-transparent px-4 py-3 text-[16px] outline-none placeholder:text-muted/50"
+              className="w-full border-b border-border/50 bg-transparent px-4 py-3 text-[16px] outline-none placeholder:text-muted-foreground/50"
               placeholder="E-Mail"
             />
             <input
@@ -70,7 +70,7 @@ export default function AnmeldenPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               autoComplete="current-password"
-              className="w-full bg-transparent px-4 py-3 text-[16px] outline-none placeholder:text-muted/50"
+              className="w-full bg-transparent px-4 py-3 text-[16px] outline-none placeholder:text-muted-foreground/50"
               placeholder="Passwort"
             />
           </div>
@@ -84,7 +84,7 @@ export default function AnmeldenPage() {
           </button>
         </form>
 
-        <p className="mt-8 text-center text-[15px] text-muted">
+        <p className="mt-8 text-center text-[15px] text-muted-foreground">
           Noch kein Konto?{" "}
           <Link href="/registrieren" className="font-semibold text-primary">
             Registrieren

@@ -30,7 +30,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="de-CH" className={cn("font-serif", merriweather.variable)}>
+    <html lang="de-CH" suppressHydrationWarning className={cn("font-serif", merriweather.variable)}>
       <body className="antialiased">{children}</body>
     </html>
   );

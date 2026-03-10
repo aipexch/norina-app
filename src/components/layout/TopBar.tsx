@@ -14,7 +14,7 @@ export default function TopBar({ title }: TopBarProps) {
         <h1 className="text-[17px] font-semibold tracking-tight">{title}</h1>
         <Link
           href="/einstellungen"
-          className="flex h-8 w-8 items-center justify-center rounded-full text-muted"
+          className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground"
         >
           <Settings className="h-[20px] w-[20px]" strokeWidth={1.5} />
         </Link>

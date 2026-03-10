@@ -50,7 +50,7 @@ export default function ExportPage() {
     <>
       <TopBar title="Daten exportieren" />
       <div className="px-4 py-6 space-y-6">
-        <p className="text-sm text-muted">
+        <p className="text-sm text-muted-foreground">
           Exportiere deine Zeiterfassungsdaten als CSV (für Excel) oder JSON
           (für programmatische Analyse).
         </p>
@@ -80,7 +80,7 @@ export default function ExportPage() {
         {/* Summary */}
         <div className="rounded-xl border border-border p-4 text-center">
           <p className="text-2xl font-bold">{filteredSummaries.length}</p>
-          <p className="text-sm text-muted">Tage im gewählten Zeitraum</p>
+          <p className="text-sm text-muted-foreground">Tage im gewählten Zeitraum</p>
         </div>
 
         {/* Export Buttons */}
@@ -107,11 +107,11 @@ export default function ExportPage() {
         {/* CSV Format Info */}
         <div className="rounded-xl bg-card-hover p-4">
           <h3 className="mb-2 text-sm font-semibold">CSV-Format</h3>
-          <p className="text-xs text-muted">
+          <p className="text-xs text-muted-foreground">
             Spalten: Datum, Wochentag, Ankunft, Abgang, Zeit an Schule (Min),
             Lektionen (Min), Überstunden (Min), Manuell
           </p>
-          <p className="mt-1 text-xs text-muted">
+          <p className="mt-1 text-xs text-muted-foreground">
             Trennzeichen: Semikolon (;) — kompatibel mit Excel in der Schweiz.
             UTF-8 mit BOM für korrekte Umlaute.
           </p>

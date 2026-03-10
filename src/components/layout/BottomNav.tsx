@@ -26,11 +26,11 @@ export default function BottomNav() {
               className={`flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[10px] ${
                 isActive
                   ? "font-semibold text-primary"
-                  : "text-muted"
+                  : "text-muted-foreground"
               }`}
             >
               <Icon
-                className={`h-[22px] w-[22px] ${isActive ? "text-primary" : "text-muted"}`}
+                className={`h-[22px] w-[22px] ${isActive ? "text-primary" : "text-muted-foreground"}`}
                 strokeWidth={isActive ? 2.2 : 1.5}
               />
               <span>{label}</span>

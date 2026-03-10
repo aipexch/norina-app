@@ -31,7 +31,8 @@ export function getTotalMinutesAtSchool(
     const clockOut = record.clock_out
       ? new Date(record.clock_out)
       : (now ?? new Date());
-    return sum + (clockOut.getTime() - clockIn.getTime()) / (1000 * 60);
+    const gross = (clockOut.getTime() - clockIn.getTime()) / (1000 * 60);
+    return sum + gross - (record.break_minutes ?? 0);
   }, 0);
 }
 

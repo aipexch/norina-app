@@ -59,6 +59,7 @@ export interface TimeRecord {
   date: string;
   clock_in: string;
   clock_out: string | null;
+  break_minutes: number;
   is_manual: boolean;
   notes: string | null;
   created_at: string;

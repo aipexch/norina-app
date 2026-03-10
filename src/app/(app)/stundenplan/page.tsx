@@ -1,17 +1,15 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useSemesters } from "@/hooks/useSemester";
 import { useTimetable } from "@/hooks/useTimetable";
 import TopBar from "@/components/layout/TopBar";
-import { Plus, Trash2, X, Check } from "lucide-react";
-import { formatDuration } from "@/lib/calculations";
-import { DAY_SHORT, type DayOfWeek, type TimetableEntry } from "@/types";
+import { Plus, Coffee } from "lucide-react";
+import { DAY_SHORT, type DayOfWeek, type TimetableEntry, type TimeSlot } from "@/types";
 
 const DAYS: DayOfWeek[] = [1, 2, 3, 4, 5];
 
-// Typische Schweizer Schulzeiten (Zeitslots)
-const TIME_SLOTS = [
+const DEFAULT_TIME_SLOTS: TimeSlot[] = [
   { start: "07:30", end: "08:15", label: "07:30" },
   { start: "08:20", end: "09:05", label: "08:20" },
   { start: "09:20", end: "10:05", label: "09:20" },
@@ -23,7 +21,6 @@ const TIME_SLOTS = [
   { start: "15:55", end: "16:40", label: "15:55" },
 ];
 
-// Farben für Fächer
 const SUBJECT_COLORS = [
   "bg-blue-100 text-blue-800 border-blue-200",
   "bg-emerald-100 text-emerald-800 border-emerald-200",
@@ -44,27 +41,15 @@ function getSubjectColor(subject: string, allSubjects: string[]): string {
 
 export default function StundenplanPage() {
   const { activeSemester } = useSemesters();
-  const {
-    entries,
-    addEntry,
-    deleteEntry,
-    getEntriesForDay,
-    getTotalMinutesForDay,
-    getTotalMinutesPerWeek,
-  } = useTimetable(activeSemester?.id ?? null);
+  const { entries, addEntry, deleteEntry } = useTimetable(activeSemester?.id ?? null);
+  const [editingCell, setEditingCell] = useState<string | null>(null);
 
-  const [editCell, setEditCell] = useState<{
-    day: DayOfWeek;
-    slotIndex: number;
-  } | null>(null);
-  const [editSubject, setEditSubject] = useState("");
-  const [editIsPause, setEditIsPause] = useState(false);
+  // Use semester's time slots, fall back to defaults
+  const timeSlots =
+    activeSemester?.time_slots?.length ? activeSemester.time_slots : DEFAULT_TIME_SLOTS;
 
-  const timeSlots = activeSemester?.time_slots || [];
-
-  // Unique subjects for color mapping
   const allSubjects = useMemo(() => {
-    const set = new Set(entries.map((e) => e.subject));
+    const set = new Set(entries.filter((e) => !e.is_pause).map((e) => e.subject));
     return Array.from(set);
   }, [entries]);
 
@@ -73,7 +58,7 @@ export default function StundenplanPage() {
       <>
         <TopBar title="Stundenplan" />
         <div className="px-4 py-12 text-center">
-          <p className="text-muted">
+          <p className="text-muted-foreground">
             Bitte erstelle zuerst ein Semester in den Einstellungen.
           </p>
         </div>
@@ -81,7 +66,6 @@ export default function StundenplanPage() {
     );
   }
 
-  // Find entry for a specific cell
   function findEntry(day: DayOfWeek, slot: TimeSlot): TimetableEntry | undefined {
     return entries.find(
       (e) =>
@@ -91,348 +75,221 @@ export default function StundenplanPage() {
     );
   }
 
-  function handleCellClick(day: DayOfWeek, slotIndex: number) {
-    const slot = timeSlots[slotIndex];
-    const existing = findEntry(day, slot);
-
-    if (existing) {
-      // Click on existing → delete
-      return;
-    }
-
-    // Open inline editor
-    setEditCell({ day, slotIndex });
-    setEditSubject("");
-    setEditIsPause(false);
-  }
-
-  async function handleSave() {
-    if (!editCell) return;
-    if (!editIsPause && !editSubject.trim()) return;
-
-    const slot = timeSlots[editCell.slotIndex];
+  async function saveEntry(day: DayOfWeek, slot: TimeSlot, subject: string) {
     await addEntry({
       semester_id: activeSemester!.id,
-      day_of_week: editCell.day,
-      subject: editIsPause ? "Pause" : editSubject.trim(),
+      day_of_week: day,
+      subject: subject.trim(),
       start_time: slot.start,
       end_time: slot.end,
-      is_pause: editIsPause,
+      is_pause: false,
       notes: null,
     });
-    setEditCell(null);
-    setEditSubject("");
-    setEditIsPause(false);
   }
 
-  async function handleDelete(entry: TimetableEntry) {
-    await deleteEntry(entry.id);
+  async function savePause(day: DayOfWeek, slot: TimeSlot) {
+    await addEntry({
+      semester_id: activeSemester!.id,
+      day_of_week: day,
+      subject: "Pause",
+      start_time: slot.start,
+      end_time: slot.end,
+      is_pause: true,
+      notes: null,
+    });
   }
-
-  const totalWeekMinutes = getTotalMinutesPerWeek();
 
   return (
     <>
       <TopBar title="Stundenplan" />
-      <div className="px-2 py-4 space-y-3">
-        {/* Semester Info */}
-        <div className="mx-2 rounded-xl bg-primary/5 px-4 py-3">
-          <p className="text-sm font-medium">{activeSemester.name}</p>
-          <p className="text-xs text-muted">
-            {formatDuration(totalWeekMinutes)} / Woche · {entries.length} Lektionen
-          </p>
-        </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[340px] border-collapse">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="w-[50px] p-2 text-left text-[11px] font-medium text-muted-foreground">
+                Zeit
+              </th>
+              {DAYS.map((day) => (
+                <th key={day} className="p-2 text-center text-xs font-semibold">
+                  {DAY_SHORT[day]}
+                </th>
+              ))}
+            </tr>
+          </thead>
 
-        {/* Timetable Grid */}
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[360px] border-collapse">
-            {/* Header: Days */}
-            <thead>
-              <tr>
-                <th className="w-12 p-1 text-[10px] font-medium text-muted">Zeit</th>
+          <tbody>
+            {timeSlots.map((slot, slotIndex) => (
+              <tr key={slotIndex} className="border-b border-border/40">
+                <td className="p-1 text-right align-middle">
+                  <span className="text-[10px] font-medium text-muted-foreground">
+                    {slot.start}
+                  </span>
+                </td>
+
                 {DAYS.map((day) => {
-                  const mins = getTotalMinutesForDay(day);
+                  const entry = findEntry(day, slot);
+                  const cellKey = `${day}-${slotIndex}`;
+                  const isEditing = editingCell === cellKey;
+
                   return (
-                    <th key={day} className="p-1 text-center">
-                      <span className="text-xs font-semibold">{DAY_SHORT[day]}</span>
-                      {mins > 0 && (
-                        <span className="block text-[9px] font-normal text-muted">
-                          {formatDuration(mins)}
-                        </span>
+                    <td key={day} className="p-0.5 align-middle">
+                      {entry ? (
+                        <FilledCell
+                          entry={entry}
+                          allSubjects={allSubjects}
+                          onDelete={() => deleteEntry(entry.id)}
+                        />
+                      ) : isEditing ? (
+                        <EditableCell
+                          allSubjects={allSubjects}
+                          onSave={(subject) => {
+                            saveEntry(day, slot, subject);
+                            setEditingCell(null);
+                          }}
+                          onSavePause={() => {
+                            savePause(day, slot);
+                            setEditingCell(null);
+                          }}
+                          onCancel={() => setEditingCell(null)}
+                        />
+                      ) : (
+                        <button
+                          onClick={() => setEditingCell(cellKey)}
+                          className="flex min-h-[44px] w-full items-center justify-center rounded-lg border border-dashed border-border/40 text-border/60 hover:border-primary/30 hover:bg-primary/5"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
                       )}
-                    </th>
+                    </td>
                   );
                 })}
               </tr>
-            </thead>
-
-            {/* Body: Time slots */}
-            <tbody>
-              {timeSlots.map((slot, slotIndex) => (
-                <tr key={slotIndex + slot.start} className="border-t border-border/50">
-                  {/* Time label */}
-                  <td className="p-1 text-right align-top">
-                    <span className="text-[10px] font-medium text-muted">
-                      {slot.label}
-                    </span>
-                  </td>
-
-                  {/* Day cells */}
-                  {DAYS.map((day) => {
-                    const entry = findEntry(day, slot);
-                    const isEditing =
-                      editCell?.day === day && editCell?.slotIndex === slotIndex;
-
-                    return (
-                      <td key={day} className="p-0.5 align-top">
-                        {isEditing ? (
-                          /* Inline Edit */
-                          <div className="rounded-lg border-2 border-primary bg-primary/5 p-1">
-                            {!editIsPause && (
-                              <input
-                                type="text"
-                                value={editSubject}
-                                onChange={(e) => setEditSubject(e.target.value)}
-                                placeholder="Fach"
-                                autoFocus
-                                className="mb-1 w-full rounded border border-border px-1.5 py-1 text-[11px] outline-none focus:border-primary bg-background"
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") handleSave();
-                                  if (e.key === "Escape") setEditCell(null);
-                                }}
-                              />
-                            )}
-                            <label className="flex items-center gap-1.5 px-0.5 mb-1 cursor-pointer text-[10px] text-muted">
-                              <input
-                                type="checkbox"
-                                checked={editIsPause}
-                                onChange={(e) => setEditIsPause(e.target.checked)}
-                                className="rounded text-primary focus:ring-primary"
-                              />
-                              Ist Pause
-                            </label>
-                            <div className="flex gap-1">
-                              <button
-                                onClick={handleSave}
-                                className="flex-1 rounded bg-primary p-0.5 text-white"
-                              >
-                                <Check className="mx-auto h-3 w-3" />
-                              </button>
-                              <button
-                                onClick={() => setEditCell(null)}
-                                className="flex-1 rounded bg-gray-200 p-0.5"
-                              >
-                                <X className="mx-auto h-3 w-3" />
-                              </button>
-                            </div>
-                          </div>
-                        ) : entry ? (
-                          /* Filled cell */
-                          <div
-                            className={`group relative min-h-[40px] cursor-pointer rounded-lg border p-1 transition-all hover:opacity-80 flex flex-col items-center justify-center ${
-                              entry.is_pause
-                                ? "bg-muted/10 border-dashed border-muted text-muted"
-                                : getSubjectColor(entry.subject, allSubjects)
-                            }`}
-                          >
-                            <p className="text-[11px] font-semibold leading-tight text-center">
-                              {entry.subject}
-                            </p>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(entry);
-                              }}
-                              className="absolute -right-1 -top-1 hidden rounded-full bg-danger p-0.5 text-white shadow group-hover:block"
-                            >
-                              <X className="h-2.5 w-2.5" />
-                            </button>
-                          </div>
-                        ) : (
-                          /* Empty cell */
-                          <button
-                            onClick={() => handleCellClick(day, slotIndex)}
-                            className="flex min-h-[40px] w-full items-center justify-center rounded-lg border border-dashed border-border/60 text-border transition-all hover:border-primary hover:bg-primary/5"
-                          >
-                            <Plus className="h-3 w-3" />
-                          </button>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Quick Add: Custom time slot */}
-        <QuickAddSection
-          semesterId={activeSemester.id}
-          allSubjects={allSubjects}
-          onAdd={addEntry}
-        />
-
-        {/* Subject Legend */}
-        {allSubjects.length > 0 && (
-          <div className="mx-2">
-            <p className="mb-2 text-xs font-medium text-muted">Fächer</p>
-            <div className="flex flex-wrap gap-1.5">
-              {allSubjects.map((subject) => (
-                <span
-                  key={subject}
-                  className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${getSubjectColor(subject, allSubjects)}`}
-                >
-                  {subject}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
+            ))}
+          </tbody>
+        </table>
       </div>
     </>
   );
 }
 
-/** Schnell-Eingabe für Lektionen mit eigenen Zeiten */
-function QuickAddSection({
-  semesterId,
+function FilledCell({
+  entry,
   allSubjects,
-  onAdd,
+  onDelete,
 }: {
-  semesterId: string;
+  entry: TimetableEntry;
   allSubjects: string[];
-  onAdd: (entry: {
-    semester_id: string;
-    day_of_week: DayOfWeek;
-    subject: string;
-    start_time: string;
-    end_time: string;
-    is_pause: boolean;
-    notes: string | null;
-  }) => Promise<TimetableEntry | null>;
+  onDelete: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const [day, setDay] = useState<DayOfWeek>(1);
-  const [subject, setSubject] = useState("");
-  const [startTime, setStartTime] = useState("08:00");
-  const [endTime, setEndTime] = useState("08:45");
-  const [isPause, setIsPause] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [confirm, setConfirm] = useState(false);
 
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault();
-    if (!isPause && !subject.trim()) return;
-    setSaving(true);
-    await onAdd({
-      semester_id: semesterId,
-      day_of_week: day,
-      subject: isPause ? "Pause" : subject.trim(),
-      start_time: startTime,
-      end_time: endTime,
-      is_pause: isPause,
-      notes: null,
-    });
-    setSaving(false);
-    setSubject("");
-    setIsPause(false);
-  }
-
-  if (!open) {
+  if (confirm) {
     return (
-      <div className="mx-2">
+      <div className="flex min-h-[44px] items-center justify-center gap-1 rounded-lg border border-danger/30 bg-danger/5 p-1">
         <button
-          onClick={() => setOpen(true)}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border py-3 text-sm text-muted transition-colors hover:border-primary hover:text-primary"
+          onClick={() => { onDelete(); setConfirm(false); }}
+          className="rounded-md bg-danger px-2 py-1 text-[10px] font-semibold text-white"
         >
-          <Plus className="h-4 w-4" />
-          Lektion mit eigener Zeit hinzufügen
+          Löschen
+        </button>
+        <button
+          onClick={() => setConfirm(false)}
+          className="rounded-md border border-border bg-card px-2 py-1 text-[10px]"
+        >
+          Nein
         </button>
       </div>
     );
   }
 
   return (
-    <form
-      onSubmit={handleAdd}
-      className="mx-2 rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2"
+    <button
+      onClick={() => setConfirm(true)}
+      className={`flex min-h-[44px] w-full items-center justify-center rounded-lg border p-1 ${
+        entry.is_pause
+          ? "border-dashed border-border bg-muted/30"
+          : getSubjectColor(entry.subject, allSubjects)
+      }`}
     >
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold">Eigene Lektion</p>
-        <button type="button" onClick={() => setOpen(false)} className="text-muted">
-          <X className="h-4 w-4" />
-        </button>
-      </div>
+      {entry.is_pause ? (
+        <Coffee className="h-3 w-3 text-muted-foreground" />
+      ) : (
+        <span className="text-[11px] font-semibold text-center leading-tight">
+          {entry.subject}
+        </span>
+      )}
+    </button>
+  );
+}
 
-      <div className="grid grid-cols-5 gap-1">
-        {DAYS.map((d) => (
+function EditableCell({
+  allSubjects,
+  onSave,
+  onSavePause,
+  onCancel,
+}: {
+  allSubjects: string[];
+  onSave: (subject: string) => void;
+  onSavePause: () => void;
+  onCancel: () => void;
+}) {
+  const [value, setValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  return (
+    <div className="rounded-lg border-2 border-primary bg-primary/5 p-1 space-y-1">
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="Fach"
+        className="w-full rounded-md border border-border bg-background px-1.5 py-1 text-[11px] outline-none focus:border-primary"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && value.trim()) onSave(value);
+          if (e.key === "Escape") onCancel();
+        }}
+        onBlur={() => setTimeout(() => { if (!value.trim()) onCancel(); }, 200)}
+      />
+
+      {allSubjects.length > 0 && (
+        <div className="flex flex-wrap gap-0.5">
+          {allSubjects.map((s) => (
+            <button
+              key={s}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => onSave(s)}
+              className="rounded border border-border/60 bg-card px-1 py-0.5 text-[9px] font-medium hover:border-primary hover:text-primary"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="flex gap-0.5">
+        {value.trim() && (
           <button
-            type="button"
-            key={d}
-            onClick={() => setDay(d)}
-            className={`rounded-lg py-1.5 text-xs font-medium transition-colors ${
-              day === d
-                ? "bg-primary text-white"
-                : "bg-white border border-border text-muted"
-            }`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onSave(value)}
+            className="flex-1 rounded-md bg-primary py-1 text-[10px] font-semibold text-white"
           >
-            {DAY_SHORT[d]}
+            OK
           </button>
-        ))}
-      </div>
-
-      <div className="flex gap-2 items-center">
-        {!isPause && (
-          <>
-            <input
-              type="text"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder="Fach"
-              required={!isPause}
-              list="subject-suggestions"
-              className="flex-1 rounded-lg border border-border px-2 py-1.5 text-sm outline-none focus:border-primary bg-background"
-            />
-            <datalist id="subject-suggestions">
-              {allSubjects.map((s) => (
-                <option key={s} value={s} />
-              ))}
-            </datalist>
-          </>
         )}
-        <label className="flex items-center gap-1.5 px-2 text-sm text-muted cursor-pointer">
-          <input
-            type="checkbox"
-            checked={isPause}
-            onChange={(e) => setIsPause(e.target.checked)}
-            className="rounded text-primary focus:ring-primary"
-          />
-          Pause
-        </label>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <input
-          type="time"
-          value={startTime}
-          onChange={(e) => setStartTime(e.target.value)}
-          className="flex-1 rounded-lg border border-border px-2 py-1.5 text-sm outline-none focus:border-primary"
-        />
-        <span className="text-xs text-muted">–</span>
-        <input
-          type="time"
-          value={endTime}
-          onChange={(e) => setEndTime(e.target.value)}
-          className="flex-1 rounded-lg border border-border px-2 py-1.5 text-sm outline-none focus:border-primary"
-        />
         <button
-          type="submit"
-          disabled={saving}
-          className="rounded-lg bg-primary px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={onSavePause}
+          title="Pause"
+          className="flex-1 rounded-md border border-dashed border-border py-1 text-[10px] text-muted-foreground hover:border-primary"
         >
-          {saving ? "..." : "OK"}
+          <Coffee className="mx-auto h-3 w-3" />
         </button>
       </div>
-    </form>
+    </div>
   );
 }

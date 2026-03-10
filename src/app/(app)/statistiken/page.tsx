@@ -37,7 +37,7 @@ export default function StatistikenPage() {
     return (
       <>
         <TopBar title="Statistiken" />
-        <div className="px-4 py-12 text-center text-sm text-muted">
+        <div className="px-4 py-12 text-center text-sm text-muted-foreground">
           Bitte erstelle zuerst ein Semester in den Einstellungen.
         </div>
       </>
@@ -48,7 +48,7 @@ export default function StatistikenPage() {
     return (
       <>
         <TopBar title="Statistiken" />
-        <div className="px-4 py-12 text-center text-sm text-muted">
+        <div className="px-4 py-12 text-center text-sm text-muted-foreground">
           Noch keine Daten vorhanden. Starte den Timer, um Statistiken zu sehen.
         </div>
       </>
@@ -82,7 +82,7 @@ export default function StatistikenPage() {
             value={stats.avgDepartureTime}
           />
           <KPICard
-            icon={<Clock className="h-5 w-5 text-muted" />}
+            icon={<Clock className="h-5 w-5 text-muted-foreground" />}
             label="Tage erfasst"
             value={`${stats.totalDaysTracked}`}
           />
@@ -98,7 +98,7 @@ export default function StatistikenPage() {
 
         {/* Day of Week Chart */}
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             Überstunden nach Wochentag
           </h2>
           <div className="rounded-xl border border-border p-4">
@@ -131,7 +131,7 @@ export default function StatistikenPage() {
         {/* Weekly Overtime Chart */}
         {stats.weekStats.length > 1 && (
           <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               Überstunden pro Woche
             </h2>
             <div className="rounded-xl border border-border p-4">
@@ -168,7 +168,7 @@ export default function StatistikenPage() {
         {/* Monthly Trend */}
         {stats.monthStats.length > 1 && (
           <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               Monatlicher Trend
             </h2>
             <div className="rounded-xl border border-border p-4">
@@ -232,8 +232,8 @@ function KPICard({
     <div className="rounded-xl border border-border p-3">
       <div className="mb-1">{icon}</div>
       <p className="text-lg font-bold">{value}</p>
-      <p className="text-[11px] text-muted">{label}</p>
-      {subtitle && <p className="text-[10px] text-muted">{subtitle}</p>}
+      <p className="text-[11px] text-muted-foreground">{label}</p>
+      {subtitle && <p className="text-[10px] text-muted-foreground">{subtitle}</p>}
     </div>
   );
 }

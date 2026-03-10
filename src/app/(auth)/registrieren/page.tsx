@@ -46,7 +46,7 @@ export default function RegistrierenPage() {
             <UserPlus className="h-9 w-9 text-white" strokeWidth={1.8} />
           </div>
           <h1 className="text-[28px] font-bold tracking-tight">Konto erstellen</h1>
-          <p className="mt-1 text-[15px] text-muted">Starte mit der Zeiterfassung</p>
+          <p className="mt-1 text-[15px] text-muted-foreground">Starte mit der Zeiterfassung</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -63,7 +63,7 @@ export default function RegistrierenPage() {
               onChange={(e) => setName(e.target.value)}
               required
               autoComplete="name"
-              className="w-full border-b border-border/50 bg-transparent px-4 py-3 text-[16px] outline-none placeholder:text-muted/50"
+              className="w-full border-b border-border/50 bg-transparent px-4 py-3 text-[16px] outline-none placeholder:text-muted-foreground/50"
               placeholder="Name"
             />
             <input
@@ -72,7 +72,7 @@ export default function RegistrierenPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              className="w-full border-b border-border/50 bg-transparent px-4 py-3 text-[16px] outline-none placeholder:text-muted/50"
+              className="w-full border-b border-border/50 bg-transparent px-4 py-3 text-[16px] outline-none placeholder:text-muted-foreground/50"
               placeholder="E-Mail"
             />
             <input
@@ -82,7 +82,7 @@ export default function RegistrierenPage() {
               required
               minLength={6}
               autoComplete="new-password"
-              className="w-full bg-transparent px-4 py-3 text-[16px] outline-none placeholder:text-muted/50"
+              className="w-full bg-transparent px-4 py-3 text-[16px] outline-none placeholder:text-muted-foreground/50"
               placeholder="Passwort (min. 6 Zeichen)"
             />
           </div>
@@ -96,7 +96,7 @@ export default function RegistrierenPage() {
           </button>
         </form>
 
-        <p className="mt-8 text-center text-[15px] text-muted">
+        <p className="mt-8 text-center text-[15px] text-muted-foreground">
           Bereits ein Konto?{" "}
           <Link href="/anmelden" className="font-semibold text-primary">
             Anmelden

@@ -1,81 +1,72 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { getUserId } from "@/lib/auth-helpers";
 import type { Semester } from "@/types";
+
+const STORAGE_KEY = "norina_semesters";
+
+function load(): Semester[] {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+}
+
+function save(data: Semester[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
 
 export function useSemesters() {
   const [semesters, setSemesters] = useState<Semester[]>([]);
   const [activeSemester, setActiveSemester] = useState<Semester | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
 
-  const fetchSemesters = useCallback(async () => {
-    const userId = await getUserId();
-
-    const { data } = await supabase
-      .from("semesters")
-      .select("*")
-      .eq("user_id", userId)
-      .order("start_date", { ascending: false });
-
-    if (data) {
-      const typed = data as Semester[];
-      setSemesters(typed);
-      const active = typed.find((s) => s.is_active);
-      setActiveSemester(active ?? null);
-    }
+  const refresh = useCallback(() => {
+    const data = load();
+    setSemesters(data);
+    setActiveSemester(data.find((s) => s.is_active) ?? null);
     setLoading(false);
-  }, [supabase]);
+  }, []);
 
   useEffect(() => {
-    fetchSemesters();
-  }, [fetchSemesters]);
+    refresh();
+  }, [refresh]);
 
   async function createSemester(
     semester: Omit<Semester, "id" | "user_id" | "created_at" | "updated_at">
   ) {
-    const userId = await getUserId();
-
-    if (semester.is_active) {
-      await supabase
-        .from("semesters")
-        .update({ is_active: false })
-        .eq("user_id", userId);
-    }
-
-    const { data, error } = await supabase
-      .from("semesters")
-      .insert({ ...semester, user_id: userId })
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Semester erstellen fehlgeschlagen:", error);
-      return null;
-    }
-    await fetchSemesters();
-    return data as Semester;
+    const data = load();
+    const base = semester.is_active ? data.map((s) => ({ ...s, is_active: false })) : data;
+    const now = new Date().toISOString();
+    const newSemester: Semester = {
+      ...semester,
+      id: crypto.randomUUID(),
+      user_id: "local",
+      created_at: now,
+      updated_at: now,
+    };
+    save([newSemester, ...base]);
+    refresh();
+    return newSemester;
   }
 
   async function updateSemester(id: string, updates: Partial<Semester>) {
-    const userId = await getUserId();
-
+    let data = load();
     if (updates.is_active) {
-      await supabase
-        .from("semesters")
-        .update({ is_active: false })
-        .eq("user_id", userId);
+      data = data.map((s) => ({ ...s, is_active: false }));
     }
-
-    await supabase.from("semesters").update(updates).eq("id", id);
-    await fetchSemesters();
+    data = data.map((s) =>
+      s.id === id ? { ...s, ...updates, updated_at: new Date().toISOString() } : s
+    );
+    save(data);
+    refresh();
   }
 
   async function deleteSemester(id: string) {
-    await supabase.from("semesters").delete().eq("id", id);
-    await fetchSemesters();
+    save(load().filter((s) => s.id !== id));
+    refresh();
   }
 
   return {
@@ -85,6 +76,6 @@ export function useSemesters() {
     createSemester,
     updateSemester,
     deleteSemester,
-    refetch: fetchSemesters,
+    refetch: refresh,
   };
 }
