@@ -2,24 +2,14 @@
 
 import { useState } from "react";
 import { useSemesters } from "@/hooks/useSemester";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
-import { Plus, Check, Trash2, LogOut, ChevronRight, Clock } from "lucide-react";
+import { Plus, Check, Trash2, Clock } from "lucide-react";
 import { formatDateShort } from "@/lib/date-utils";
 import type { TimeSlot } from "@/types";
 
 export default function EinstellungenPage() {
   const { semesters, activeSemester, createSemester, updateSemester, deleteSemester } = useSemesters();
   const [showForm, setShowForm] = useState(false);
-  const router = useRouter();
-  const supabase = createClient();
-
-  async function handleLogout() {
-    await supabase.auth.signOut();
-    router.push("/anmelden");
-    router.refresh();
-  }
 
   return (
     <>
@@ -134,20 +124,6 @@ export default function EinstellungenPage() {
           </section>
         )}
 
-        {/* Account */}
-        <section>
-          <p className="mb-2 px-1 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Account
-          </p>
-          <div className="overflow-hidden rounded-xl bg-card">
-            <button
-              onClick={handleLogout}
-              className="flex w-full items-center justify-center px-4 py-3 text-[17px] text-danger"
-            >
-              Abmelden
-            </button>
-          </div>
-        </section>
       </div>
     </>
   );
