@@ -1,6 +1,6 @@
 {
-  "name": "Norina — Lehrerzeit",
-  "short_name": "Norina",
+  "name": "Timely — Lehrerzeit",
+  "short_name": "Timely",
   "description": "Zeiterfassung und Überstunden-Tracking für Lehrpersonen",
   "start_url": "/dashboard",
   "display": "standalone",

@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useSemesters } from "@/hooks/useSemester";
 import { useTimeRecords } from "@/hooks/useTimeRecords";
 import { useTimetable } from "@/hooks/useTimetable";
 import { buildDailySummary, formatMinutes, formatDuration } from "@/lib/calculations";
 import { formatDateShort, formatTime, formatWeekdayShort } from "@/lib/date-utils";
-import TopBar from "@/components/layout/TopBar";
 import { BreakSheet } from "@/components/BreakSheet";
 import { Plus, X, Clock, PenLine, Trash2, BookOpen, TrendingUp } from "lucide-react";
+import WheelTimePicker from "@/components/WheelTimePicker";
+import WheelDatePicker from "@/components/WheelDatePicker";
 import type { DailySummary, TimeRecord } from "@/types";
 
 export default function ZeiterfassungPage() {
@@ -45,18 +46,16 @@ export default function ZeiterfassungPage() {
 
   return (
     <>
-      <TopBar title="Zeiterfassung" />
-      <div className="px-4 py-4 space-y-4">
-        {/* Add Manual Entry */}
-        <div className="flex justify-end">
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-white"
-          >
-            <Plus className="h-4 w-4" />
-            Manueller Eintrag
-          </button>
-        </div>
+      <header className="flex items-center justify-between pt-4 pb-2 px-5">
+        <h1 className="text-[28px] font-bold tracking-tight">Zeiterfassung</h1>
+        <button
+          onClick={() => setShowForm(true)}
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-white shadow-sm"
+        >
+          <Plus className="h-5 w-5" />
+        </button>
+      </header>
+      <div className="px-5 py-4 space-y-4">
 
         {showForm && (
           <ManualEntryForm
@@ -80,7 +79,7 @@ export default function ZeiterfassungPage() {
         )}
 
         {selectedDetail && (
-          <RecordDetailSheet
+          <RecordDetailPopover
             record={selectedDetail.record}
             summary={selectedDetail.summary}
             onSave={async (clockIn, clockOut) => {
@@ -131,25 +130,24 @@ function DaySummaryCard({
   onRecordSelect: (record: TimeRecord) => void;
 }) {
   return (
-    <div className="rounded-xl border border-border">
+    <div className="overflow-hidden rounded-2xl bg-card shadow-sm">
       {/* Day Header */}
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+      <div className="flex items-center justify-between px-4 py-3">
         <div>
-          <p className="font-medium">
+          <p className="font-semibold">
             {formatWeekdayShort(summary.date)}, {formatDateShort(summary.date)}
           </p>
-          <p className="text-xs text-muted-foreground">
-            {formatDuration(summary.totalMinutesAtSchool)} an Schule ·{" "}
-            {formatDuration(summary.scheduledMinutes)} Lektionen
+          <p className="text-[12px] text-muted-foreground">
+            {formatDuration(summary.totalMinutesAtSchool)} an Schule · {formatDuration(summary.scheduledMinutes)} Lektionen
           </p>
         </div>
         <div
-          className={`rounded-lg px-2.5 py-1 text-sm font-bold ${
+          className={`rounded-full px-3 py-1 text-sm font-bold ${
             summary.overtimeMinutes > 0
-              ? "bg-accent/10 text-accent"
+              ? "bg-primary/10 text-primary"
               : summary.overtimeMinutes < 0
-                ? "bg-primary/10 text-primary"
-                : "bg-secondary text-muted-foreground"
+                ? "bg-danger/10 text-danger"
+                : "bg-muted text-muted-foreground"
           }`}
         >
           {formatMinutes(summary.overtimeMinutes)}
@@ -157,7 +155,7 @@ function DaySummaryCard({
       </div>
 
       {/* Records */}
-      <div className="divide-y divide-border/50">
+      <div className="divide-y divide-border/30">
         {summary.records.map((record) => (
           <button
             key={record.id}
@@ -169,7 +167,7 @@ function DaySummaryCard({
               <span className="text-sm">
                 {formatTime(record.clock_in)} –{" "}
                 {record.clock_out ? formatTime(record.clock_out) : (
-                  <span className="font-medium text-accent">läuft</span>
+                  <span className="font-medium text-primary">läuft</span>
                 )}
               </span>
               {record.is_manual && (
@@ -186,7 +184,7 @@ function DaySummaryCard({
   );
 }
 
-function RecordDetailSheet({
+function RecordDetailPopover({
   record,
   summary,
   onSave,
@@ -208,6 +206,17 @@ function RecordDetailSheet({
   const [outTime, setOutTime] = useState(record.clock_out ? toTimeStr(record.clock_out) : "");
   const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const [editingTime, setEditingTime] = useState<"in" | "out" | null>(null);
+
+  useEffect(() => {
+    requestAnimationFrame(() => setVisible(true));
+  }, []);
+
+  const handleClose = useCallback(() => {
+    setVisible(false);
+    setTimeout(() => onClose(), 250);
+  }, [onClose]);
 
   async function handleSave() {
     setSaving(true);
@@ -217,104 +226,123 @@ function RecordDetailSheet({
   }
 
   return (
+    <>
+    {editingTime && (
+      <WheelTimePicker
+        value={editingTime === "in" ? inTime : outTime}
+        onConfirm={(val) => {
+          if (editingTime === "in") setInTime(val);
+          else setOutTime(val);
+          setEditingTime(null);
+        }}
+        onCancel={() => setEditingTime(null)}
+      />
+    )}
     <div
-      className="fixed inset-0 z-50 flex items-end"
-      style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      className={`fixed inset-0 z-50 flex items-center justify-center px-5 transition-colors duration-250 ease-out ${
+        visible ? "bg-black/30" : "bg-black/0"
+      }`}
+      onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
-      <div className="w-full rounded-t-2xl bg-background px-4 pb-10 pt-4">
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-border" />
-
+      <div
+        className={`w-full max-w-sm rounded-3xl bg-card p-5 shadow-xl transition-all duration-250 ease-out ${
+          visible
+            ? "scale-100 opacity-100"
+            : "scale-90 opacity-0"
+        }`}
+      >
         {/* Header */}
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-[17px] font-semibold">
-            {formatWeekdayShort(summary.date)}, {formatDateShort(summary.date)}
-          </h2>
-          <button onClick={onClose} className="text-muted-foreground">
-            <X className="h-5 w-5" />
+        <div className="mb-4 flex items-start justify-between">
+          <div>
+            <p className="text-[13px] text-muted-foreground">
+              {formatWeekdayShort(summary.date)}, {formatDateShort(summary.date)}
+            </p>
+            <p className="text-[15px] font-bold">
+              {formatTime(record.clock_in)} – {record.clock_out ? formatTime(record.clock_out) : "läuft"}
+            </p>
+          </div>
+          <button onClick={handleClose} className="rounded-full bg-muted p-1.5 -mt-0.5">
+            <X className="h-4 w-4 text-muted-foreground" />
           </button>
         </div>
 
         {/* Day Stats */}
-        <div className="grid grid-cols-3 gap-2 mb-5">
+        <div className="grid grid-cols-3 gap-2 mb-4">
           <StatPill
-            icon={<TrendingUp className="h-4 w-4" />}
+            icon={<TrendingUp className="h-3.5 w-3.5" />}
             label="Überstunden"
             value={formatMinutes(summary.overtimeMinutes)}
             accent={summary.overtimeMinutes > 0}
           />
           <StatPill
-            icon={<Clock className="h-4 w-4" />}
+            icon={<Clock className="h-3.5 w-3.5" />}
             label="An Schule"
             value={formatDuration(summary.totalMinutesAtSchool)}
           />
           <StatPill
-            icon={<BookOpen className="h-4 w-4" />}
+            icon={<BookOpen className="h-3.5 w-3.5" />}
             label="Lektionen"
             value={formatDuration(summary.scheduledMinutes)}
           />
         </div>
 
         {/* Edit Times */}
-        <div className="rounded-xl bg-card p-4 space-y-3">
-          <p className="text-[13px] font-medium text-muted-foreground">Zeiten bearbeiten</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-[12px] text-muted-foreground">Ankunft</label>
-              <input
-                type="time"
-                value={inTime}
-                onChange={(e) => setInTime(e.target.value)}
-                className="w-full rounded-lg border border-border px-3 py-2.5 text-sm outline-none focus:border-primary"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-[12px] text-muted-foreground">Abgang</label>
-              <input
-                type="time"
-                value={outTime}
-                onChange={(e) => setOutTime(e.target.value)}
-                className="w-full rounded-lg border border-border px-3 py-2.5 text-sm outline-none focus:border-primary"
-              />
-            </div>
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div>
+            <label className="mb-1 block text-[12px] text-muted-foreground">Ankunft</label>
+            <button
+              onClick={() => setEditingTime("in")}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-left text-[15px] font-medium tabular-nums active:bg-muted/50 transition-colors"
+            >
+              {inTime}
+            </button>
+          </div>
+          <div>
+            <label className="mb-1 block text-[12px] text-muted-foreground">Abgang</label>
+            <button
+              onClick={() => setEditingTime("out")}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-left text-[15px] font-medium tabular-nums active:bg-muted/50 transition-colors"
+            >
+              {outTime || "–"}
+            </button>
           </div>
         </div>
 
         <button
           onClick={handleSave}
           disabled={saving}
-          className="mt-3 w-full rounded-xl bg-primary py-3 text-[15px] font-medium text-white disabled:opacity-50"
+          className="w-full rounded-2xl bg-primary py-3 text-[15px] font-medium text-white shadow-sm disabled:opacity-50"
         >
           {saving ? "Speichern..." : "Speichern"}
         </button>
 
-        {/* Delete */}
         {confirming ? (
           <div className="mt-3 flex gap-2">
             <button
               onClick={() => setConfirming(false)}
-              className="flex-1 rounded-xl border border-border py-3 text-[14px] text-muted-foreground"
+              className="flex-1 rounded-2xl border border-border py-2.5 text-[13px] text-muted-foreground"
             >
               Abbrechen
             </button>
             <button
               onClick={onDelete}
-              className="flex-1 rounded-xl bg-danger py-3 text-[14px] font-medium text-white"
+              className="flex-1 rounded-2xl bg-danger py-2.5 text-[13px] font-medium text-white"
             >
-              Löschen bestätigen
+              Löschen
             </button>
           </div>
         ) : (
           <button
             onClick={() => setConfirming(true)}
-            className="mt-2 flex w-full items-center justify-center gap-1.5 py-3 text-[14px] text-danger"
+            className="mt-2 flex w-full items-center justify-center gap-1.5 py-2.5 text-[13px] text-danger"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-3.5 w-3.5" />
             Eintrag löschen
           </button>
         )}
       </div>
     </div>
+    </>
   );
 }
 
@@ -330,14 +358,19 @@ function StatPill({
   accent?: boolean;
 }) {
   return (
-    <div className={`rounded-xl p-3 text-center ${accent ? "bg-accent/8" : "bg-card"}`}>
-      <div className={`mb-1 flex justify-center ${accent ? "text-accent" : "text-muted-foreground"}`}>
+    <div className={`rounded-2xl p-3 text-center ${accent ? "bg-primary/10" : "bg-background"}`}>
+      <div className={`mb-1 flex justify-center ${accent ? "text-primary" : "text-muted-foreground"}`}>
         {icon}
       </div>
-      <p className={`text-[15px] font-semibold ${accent ? "text-accent" : ""}`}>{value}</p>
+      <p className={`text-[15px] font-semibold ${accent ? "text-primary" : ""}`}>{value}</p>
       <p className="text-[11px] text-muted-foreground">{label}</p>
     </div>
   );
+}
+
+function formatDateLabel(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("de-CH", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 }
 
 function ManualEntryForm({
@@ -352,6 +385,7 @@ function ManualEntryForm({
   const [clockOut, setClockOut] = useState("17:00");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editingPicker, setEditingPicker] = useState<"date" | "in" | "out" | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -366,71 +400,94 @@ function ManualEntryForm({
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3"
-    >
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Manueller Eintrag</h3>
-        <button type="button" onClick={onCancel} className="text-muted-foreground">
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-
-      <div>
-        <label className="mb-1 block text-sm font-medium">Datum</label>
-        <input
-          type="date"
+    <>
+      {editingPicker === "date" && (
+        <WheelDatePicker
           value={date}
-          onChange={(e) => setDate(e.target.value)}
-          required
-          className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-primary"
+          onConfirm={(val) => { setDate(val); setEditingPicker(null); }}
+          onCancel={() => setEditingPicker(null)}
         />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="mb-1 block text-sm font-medium">Ankunft</label>
-          <input
-            type="time"
-            value={clockIn}
-            onChange={(e) => setClockIn(e.target.value)}
-            required
-            className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-primary"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">Abgang</label>
-          <input
-            type="time"
-            value={clockOut}
-            onChange={(e) => setClockOut(e.target.value)}
-            required
-            className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-primary"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="mb-1 block text-sm font-medium">
-          Notiz <span className="text-muted-foreground">(optional)</span>
-        </label>
-        <input
-          type="text"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="z.B. Elternabend"
-          className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-primary"
+      )}
+      {editingPicker === "in" && (
+        <WheelTimePicker
+          value={clockIn}
+          onConfirm={(val) => { setClockIn(val); setEditingPicker(null); }}
+          onCancel={() => setEditingPicker(null)}
         />
-      </div>
-
-      <button
-        type="submit"
-        disabled={saving}
-        className="w-full rounded-lg bg-primary py-2 text-sm font-medium text-white disabled:opacity-50"
+      )}
+      {editingPicker === "out" && (
+        <WheelTimePicker
+          value={clockOut}
+          onConfirm={(val) => { setClockOut(val); setEditingPicker(null); }}
+          onCancel={() => setEditingPicker(null)}
+        />
+      )}
+      <form
+        onSubmit={handleSubmit}
+        className="rounded-2xl bg-card p-5 shadow-sm space-y-4"
       >
-        {saving ? "Speichern..." : "Speichern"}
-      </button>
-    </form>
+        <div className="flex items-center justify-between">
+          <h3 className="text-[15px] font-bold">Manueller Eintrag</h3>
+          <button type="button" onClick={onCancel} className="rounded-full bg-muted p-1.5">
+            <X className="h-4 w-4 text-muted-foreground" />
+          </button>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-[13px] font-medium text-muted-foreground">Datum</label>
+          <button
+            type="button"
+            onClick={() => setEditingPicker("date")}
+            className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-left text-[15px] font-medium active:bg-muted/50 transition-colors"
+          >
+            {formatDateLabel(date)}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="mb-1 block text-[13px] font-medium text-muted-foreground">Ankunft</label>
+            <button
+              type="button"
+              onClick={() => setEditingPicker("in")}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-left text-[15px] font-medium tabular-nums active:bg-muted/50 transition-colors"
+            >
+              {clockIn}
+            </button>
+          </div>
+          <div>
+            <label className="mb-1 block text-[13px] font-medium text-muted-foreground">Abgang</label>
+            <button
+              type="button"
+              onClick={() => setEditingPicker("out")}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-left text-[15px] font-medium tabular-nums active:bg-muted/50 transition-colors"
+            >
+              {clockOut}
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-[13px] font-medium text-muted-foreground">
+            Notiz <span className="text-muted-foreground/60">(optional)</span>
+          </label>
+          <input
+            type="text"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="z.B. Elternabend"
+            className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={saving}
+          className="w-full rounded-2xl bg-primary py-3 text-sm font-medium text-white shadow-sm disabled:opacity-50"
+        >
+          {saving ? "Speichern..." : "Speichern"}
+        </button>
+      </form>
+    </>
   );
 }

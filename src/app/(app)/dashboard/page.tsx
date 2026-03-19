@@ -23,11 +23,10 @@ export default function DashboardPage() {
     activeSemester?.id ?? null
   );
   const { entries } = useTimetable(activeSemester?.id ?? null);
-  const { records, refetch: refetchRecords, updateRecord } = useTimeRecords(activeSemester?.id ?? null);
+  const { records, updateRecord } = useTimeRecords(activeSemester?.id ?? null);
 
   const today = todayISO();
   const todayRecords = records.filter((r) => r.date === today);
-  // Heute: nur wenn getrackt wurde, sonst 0 geplante Minuten
   const scheduledMinutes = todayRecords.length > 0
     ? getScheduledMinutesForDate(new Date(), entries)
     : 0;
@@ -40,7 +39,6 @@ export default function DashboardPage() {
   monday.setHours(0, 0, 0, 0);
   const weekRecords = records.filter((r) => new Date(r.date) >= monday);
   const weekTotalMinutes = getTotalMinutesAtSchool(weekRecords);
-  // Nur getrackte Tage zählen
   const trackedDatesThisWeek = new Set(weekRecords.map((r) => r.date));
   const weekScheduledMinutes = Array.from(trackedDatesThisWeek).reduce((sum, dateStr) => {
     return sum + getScheduledMinutesForDate(new Date(dateStr), entries);
@@ -50,10 +48,8 @@ export default function DashboardPage() {
   async function handleTimerToggle() {
     if (state === "idle") {
       await startTimer();
-      setTimeout(() => refetchRecords(), 500);
     } else {
       const id = await stopTimer();
-      setTimeout(() => refetchRecords(), 500);
       if (id) setBreakRecordId(id);
     }
   }
@@ -73,12 +69,11 @@ export default function DashboardPage() {
         onSelect={async (minutes) => {
           await updateRecord(breakRecordId, { break_minutes: minutes });
           setBreakRecordId(null);
-          refetchRecords();
         }}
         onSkip={() => setBreakRecordId(null)}
       />
     )}
-    <div className="px-4 py-6 space-y-5">
+    <div className="px-5 py-6 space-y-6">
       {/* Greeting */}
       <div>
         <h1 className="text-[28px] font-bold tracking-tight">
@@ -93,7 +88,7 @@ export default function DashboardPage() {
       {!activeSemester && (
         <Link
           href="/einstellungen"
-          className="flex items-start gap-3 rounded-2xl bg-amber-50 p-4"
+          className="flex items-start gap-3 rounded-2xl bg-amber-50 p-4 shadow-sm"
         >
           <AlertCircle className="h-5 w-5 shrink-0 text-amber-500" />
           <div>
@@ -108,11 +103,10 @@ export default function DashboardPage() {
       )}
 
       {/* Timer Section */}
-      <div className="flex flex-col items-center rounded-2xl bg-card py-8">
-        {/* Elapsed Time */}
+      <div className="flex flex-col items-center rounded-2xl bg-card py-8 shadow-sm">
         <p
           className={`text-[48px] font-light tabular-nums tracking-tight ${
-            state === "running" ? "text-accent" : "text-muted-foreground/40"
+            state === "running" ? "text-primary" : "text-muted-foreground/40"
           }`}
         >
           {formatElapsedTime(state === "running" ? elapsedSeconds : 0)}
@@ -121,14 +115,13 @@ export default function DashboardPage() {
           {state === "running" ? "Timer läuft" : "Bereit"}
         </p>
 
-        {/* Big Timer Button */}
         <button
           onClick={handleTimerToggle}
           disabled={!activeSemester}
-          className={`flex h-[88px] w-[88px] items-center justify-center rounded-full shadow-xl disabled:opacity-30 ${
+          className={`flex h-[88px] w-[88px] items-center justify-center rounded-full shadow-lg disabled:opacity-30 ${
             state === "idle"
-              ? "bg-accent text-white shadow-accent/30"
-              : "bg-danger text-white shadow-danger/30"
+              ? "bg-primary text-white shadow-primary/25"
+              : "bg-danger text-white shadow-danger/25"
           }`}
         >
           {state === "idle" ? (
@@ -143,11 +136,11 @@ export default function DashboardPage() {
       </div>
 
       {/* Today's Summary */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         <h2 className="px-1 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
           Heute
         </h2>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-3">
           <SummaryCard
             icon={<BookOpen className="h-[18px] w-[18px] text-primary" />}
             value={formatDuration(scheduledMinutes)}
@@ -161,28 +154,28 @@ export default function DashboardPage() {
           <SummaryCard
             icon={
               <TrendingUp
-                className={`h-[18px] w-[18px] ${overtimeMinutes >= 0 ? "text-accent" : "text-primary"}`}
+                className={`h-[18px] w-[18px] ${overtimeMinutes >= 0 ? "text-primary" : "text-danger"}`}
               />
             }
             value={formatMinutes(overtimeMinutes)}
             label="Überstunden"
-            highlight={overtimeMinutes > 0 ? "accent" : undefined}
+            highlight={overtimeMinutes > 0}
           />
         </div>
       </div>
 
       {/* Week Summary */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         <h2 className="px-1 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
           Diese Woche
         </h2>
-        <div className="rounded-2xl bg-card p-4">
+        <div className="rounded-2xl bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[13px] text-muted-foreground">Überstunden</p>
               <p
                 className={`text-[28px] font-bold tracking-tight ${
-                  weekOvertime > 0 ? "text-accent" : weekOvertime < 0 ? "text-primary" : "text-foreground"
+                  weekOvertime > 0 ? "text-primary" : weekOvertime < 0 ? "text-danger" : "text-foreground"
                 }`}
               >
                 {formatMinutes(weekOvertime)}
@@ -201,7 +194,7 @@ export default function DashboardPage() {
                 <span>Lektionen: {formatDuration(weekScheduledMinutes)}</span>
                 <span>Total: {formatDuration(weekTotalMinutes)}</span>
               </div>
-              <div className="mt-1.5 h-[6px] overflow-hidden rounded-full bg-secondary-bg">
+              <div className="mt-1.5 h-[6px] overflow-hidden rounded-full bg-muted">
                 <div
                   className="h-full rounded-full bg-primary"
                   style={{
@@ -230,14 +223,12 @@ function SummaryCard({
   icon: React.ReactNode;
   value: string;
   label: string;
-  highlight?: "accent" | "primary";
+  highlight?: boolean;
 }) {
   return (
     <div
-      className={`rounded-2xl p-3 text-center ${
-        highlight === "accent"
-          ? "bg-accent/8"
-          : "bg-card"
+      className={`rounded-2xl p-3 text-center shadow-sm ${
+        highlight ? "bg-primary/10" : "bg-card"
       }`}
     >
       <div className="mb-1 flex justify-center">{icon}</div>

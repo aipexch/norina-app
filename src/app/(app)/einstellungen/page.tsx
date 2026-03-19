@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useSemesters } from "@/hooks/useSemester";
 import TopBar from "@/components/layout/TopBar";
-import { Plus, Check, Trash2, Clock, Download, Upload } from "lucide-react";
+import { Plus, Check, Trash2, Clock, Download, Upload, GripVertical, X, Calendar, Percent, BookOpen, Timer } from "lucide-react";
 import { formatDateShort } from "@/lib/date-utils";
+import WheelTimePicker from "@/components/WheelTimePicker";
+import WheelDatePicker from "@/components/WheelDatePicker";
+import WheelNumberPicker from "@/components/WheelNumberPicker";
 import type { TimeSlot } from "@/types";
 
 const STORAGE_KEYS = ["norina_semesters", "norina_timetable", "norina_records"] as const;
@@ -12,6 +15,7 @@ const STORAGE_KEYS = ["norina_semesters", "norina_timetable", "norina_records"] 
 export default function EinstellungenPage() {
   const { semesters, activeSemester, createSemester, updateSemester, deleteSemester } = useSemesters();
   const [showForm, setShowForm] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleExport() {
@@ -31,7 +35,7 @@ export default function EinstellungenPage() {
     const a = document.createElement("a");
     a.href = url;
     const today = new Date().toISOString().slice(0, 10);
-    a.download = `norina-backup-${today}.json`;
+    a.download = `timely-backup-${today}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -52,21 +56,20 @@ export default function EinstellungenPage() {
         }
         window.location.reload();
       } catch {
-        alert("Ungültige Datei. Bitte eine gültige Norina-Backup-Datei auswählen.");
+        alert("Ungültige Datei.");
       }
     };
     reader.readAsText(file);
-    // Reset so the same file can be re-imported
     e.target.value = "";
   }
 
   return (
     <>
       <TopBar title="Einstellungen" />
-      <div className="px-4 py-6 space-y-6">
+      <div className="px-5 py-6 space-y-6">
         {/* Semester Section */}
         <section>
-          <div className="mb-2 flex items-center justify-between px-1">
+          <div className="mb-3 flex items-center justify-between px-1">
             <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
               Semester
             </h2>
@@ -89,19 +92,17 @@ export default function EinstellungenPage() {
             />
           )}
 
-          {/* iOS-style grouped list */}
-          <div className="overflow-hidden rounded-xl bg-card">
+          <div className="overflow-hidden rounded-2xl bg-card shadow-sm">
             {semesters.map((semester, i) => (
               <div
                 key={semester.id}
-                className={`flex items-center gap-3 px-4 py-3 ${
-                  i > 0 ? "border-t border-border/30" : ""
+                className={`flex items-center gap-3 px-4 py-3.5 ${
+                  i > 0 ? "border-t border-border/20" : ""
                 }`}
               >
-                {/* Active indicator */}
                 <div className="shrink-0">
                   {semester.is_active ? (
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary">
                       <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
                     </div>
                   ) : (
@@ -112,9 +113,8 @@ export default function EinstellungenPage() {
                   )}
                 </div>
 
-                {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-[15px] font-medium truncate">{semester.name}</p>
+                  <p className="text-[15px] font-semibold truncate">{semester.name}</p>
                   <p className="text-[13px] text-muted-foreground">
                     {formatDateShort(semester.start_date)} – {formatDateShort(semester.end_date)}
                   </p>
@@ -123,17 +123,29 @@ export default function EinstellungenPage() {
                   </p>
                 </div>
 
-                {/* Delete */}
-                <button
-                  onClick={() => {
-                    if (confirm("Semester wirklich löschen?")) {
-                      deleteSemester(semester.id);
-                    }
-                  }}
-                  className="shrink-0 rounded-full p-1.5 text-muted-foreground"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                {deletingId === semester.id ? (
+                  <div className="flex gap-1.5 shrink-0">
+                    <button
+                      onClick={() => { deleteSemester(semester.id); setDeletingId(null); }}
+                      className="rounded-lg bg-danger px-2.5 py-1 text-[11px] font-semibold text-white"
+                    >
+                      Ja
+                    </button>
+                    <button
+                      onClick={() => setDeletingId(null)}
+                      className="rounded-lg bg-muted px-2.5 py-1 text-[11px] font-medium"
+                    >
+                      Nein
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setDeletingId(semester.id)}
+                    className="shrink-0 rounded-full p-1.5 text-muted-foreground"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             ))}
 
@@ -151,12 +163,12 @@ export default function EinstellungenPage() {
         {/* Active Semester Info */}
         {activeSemester && (
           <section>
-            <p className="mb-2 px-1 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="mb-3 px-1 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
               Aktives Semester
             </p>
-            <div className="rounded-xl bg-card px-4 py-3 mb-4">
+            <div className="rounded-2xl bg-card px-4 py-3.5 mb-4 shadow-sm">
               <p className="text-[15px]">
-                <span className="font-medium">{activeSemester.name}</span>
+                <span className="font-semibold">{activeSemester.name}</span>
                 {" — "}
                 <span className="text-muted-foreground">
                   Neue Einträge werden diesem Semester zugeordnet.
@@ -175,21 +187,21 @@ export default function EinstellungenPage() {
 
         {/* Daten Section */}
         <section>
-          <p className="mb-2 px-1 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <p className="mb-3 px-1 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
             Daten
           </p>
-          <div className="overflow-hidden rounded-xl bg-card">
+          <div className="overflow-hidden rounded-2xl bg-card shadow-sm">
             <button
               onClick={handleExport}
-              className="flex w-full items-center gap-3 px-4 py-3 text-[15px] font-medium active:bg-muted/50 transition-colors"
+              className="flex w-full items-center gap-3 px-4 py-3.5 text-[15px] font-medium active:bg-muted/50 transition-colors"
             >
               <Download className="h-5 w-5 text-primary" />
               <span>Backup exportieren</span>
             </button>
-            <div className="border-t border-border/30">
+            <div className="border-t border-border/20">
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="flex w-full items-center gap-3 px-4 py-3 text-[15px] font-medium active:bg-muted/50 transition-colors"
+                className="flex w-full items-center gap-3 px-4 py-3.5 text-[15px] font-medium active:bg-muted/50 transition-colors"
               >
                 <Upload className="h-5 w-5 text-primary" />
                 <span>Backup importieren</span>
@@ -205,9 +217,20 @@ export default function EinstellungenPage() {
           </div>
         </section>
 
+        {/* Version */}
+        <p className="text-center text-[12px] text-muted-foreground/60">
+          Timely v0.2
+        </p>
+
       </div>
     </>
   );
+}
+
+function formatDateDisplay(dateStr: string): string {
+  if (!dateStr) return "Datum wählen";
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("de-CH", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 function SemesterForm({
@@ -233,9 +256,15 @@ function SemesterForm({
   const [lessons, setLessons] = useState(28);
   const [minutesPerLesson, setMinutesPerLesson] = useState(45);
   const [saving, setSaving] = useState(false);
+  const [activePicker, setActivePicker] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  useEffect(() => {
+    setTimeout(() => inputRef.current?.focus(), 100);
+  }, []);
+
+  async function handleSubmit() {
+    if (!name.trim() || !startDate || !endDate) return;
     setSaving(true);
     await onSave({
       name,
@@ -251,107 +280,185 @@ function SemesterForm({
         { start: "09:20", end: "10:05", label: "09:20" },
         { start: "10:10", end: "10:55", label: "10:10" },
         { start: "11:00", end: "11:45", label: "11:00" },
-        { start: "13:15", end: "14:00", "label": "13:15" },
-        { start: "14:05", end: "14:50", "label": "14:05" },
-        { start: "15:05", end: "15:50", "label": "15:05" },
-        { start: "15:55", end: "16:40", "label": "15:55" },
+        { start: "13:15", end: "14:00", label: "13:15" },
+        { start: "14:05", end: "14:50", label: "14:05" },
+        { start: "15:05", end: "15:50", label: "15:05" },
+        { start: "15:55", end: "16:40", label: "15:55" },
       ],
     });
     setSaving(false);
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mb-4 overflow-hidden rounded-xl bg-card">
-      <div className="border-b border-border/30 px-4 py-2.5">
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-          placeholder="Bezeichnung (z.B. FS 2026)"
-          className="w-full bg-transparent text-[16px] outline-none placeholder:text-muted-foreground/50"
+    <>
+      <div className="mb-4 overflow-hidden rounded-2xl bg-card p-5 shadow-sm">
+          {/* Header */}
+          <div className="mb-5 flex items-center justify-between">
+            <h2 className="text-[17px] font-bold">Neues Semester</h2>
+            <button
+              onClick={onCancel}
+              className="rounded-full bg-muted p-1.5"
+            >
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
+          </div>
+
+          {/* Name */}
+          <div className="mb-4">
+            <label className="mb-1.5 block text-[13px] font-medium text-muted-foreground">
+              Bezeichnung
+            </label>
+            <input
+              ref={inputRef}
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="z.B. FS 2026"
+              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-[15px] outline-none focus:border-primary"
+            />
+          </div>
+
+          {/* Date pickers */}
+          <div className="mb-4 grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1.5 block text-[13px] font-medium text-muted-foreground">
+                Start
+              </label>
+              <button
+                onClick={() => setActivePicker("startDate")}
+                className="flex w-full items-center gap-2 rounded-2xl border border-border bg-background px-4 py-3 text-left text-[15px] active:bg-muted/50"
+              >
+                <Calendar className="h-4 w-4 shrink-0 text-primary" />
+                <span className={startDate ? "font-medium" : "text-muted-foreground"}>
+                  {formatDateDisplay(startDate)}
+                </span>
+              </button>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-[13px] font-medium text-muted-foreground">
+                Ende
+              </label>
+              <button
+                onClick={() => setActivePicker("endDate")}
+                className="flex w-full items-center gap-2 rounded-2xl border border-border bg-background px-4 py-3 text-left text-[15px] active:bg-muted/50"
+              >
+                <Calendar className="h-4 w-4 shrink-0 text-primary" />
+                <span className={endDate ? "font-medium" : "text-muted-foreground"}>
+                  {formatDateDisplay(endDate)}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Number pickers */}
+          <div className="mb-6 grid grid-cols-3 gap-3">
+            <div>
+              <label className="mb-1.5 block text-[13px] font-medium text-muted-foreground">
+                Pensum
+              </label>
+              <button
+                onClick={() => setActivePicker("pensum")}
+                className="flex w-full items-center gap-2 rounded-2xl border border-border bg-background px-3 py-3 text-[15px] font-medium active:bg-muted/50"
+              >
+                <Percent className="h-3.5 w-3.5 shrink-0 text-primary" />
+                {pensum}%
+              </button>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-[13px] font-medium text-muted-foreground">
+                Lekt./Wo
+              </label>
+              <button
+                onClick={() => setActivePicker("lessons")}
+                className="flex w-full items-center gap-2 rounded-2xl border border-border bg-background px-3 py-3 text-[15px] font-medium active:bg-muted/50"
+              >
+                <BookOpen className="h-3.5 w-3.5 shrink-0 text-primary" />
+                {Number.isInteger(lessons) ? lessons : `${Math.floor(lessons)} ${["", "¼", "½", "¾"][Math.round((lessons % 1) * 4)]}`}
+              </button>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-[13px] font-medium text-muted-foreground">
+                Min/Lekt.
+              </label>
+              <button
+                onClick={() => setActivePicker("minutes")}
+                className="flex w-full items-center gap-2 rounded-2xl border border-border bg-background px-3 py-3 text-[15px] font-medium active:bg-muted/50"
+              >
+                <Timer className="h-3.5 w-3.5 shrink-0 text-primary" />
+                {minutesPerLesson}
+              </button>
+            </div>
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-3">
+            <button
+              onClick={onCancel}
+              className="flex-1 rounded-2xl border border-border py-3 text-[15px] font-medium text-muted-foreground"
+            >
+              Abbrechen
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={saving || !name.trim() || !startDate || !endDate}
+              className="flex-1 rounded-2xl bg-primary py-3 text-[15px] font-medium text-white shadow-sm disabled:opacity-40"
+            >
+              {saving ? "..." : "Erstellen"}
+            </button>
+          </div>
+      </div>
+
+      {/* Wheel pickers */}
+      {activePicker === "startDate" && (
+        <WheelDatePicker
+          value={startDate}
+          onConfirm={(v) => { setStartDate(v); setActivePicker(null); }}
+          onCancel={() => setActivePicker(null)}
         />
-      </div>
-
-      <div className="grid grid-cols-2 border-b border-border/30">
-        <div className="border-r border-border/30 px-4 py-2.5">
-          <label className="mb-0.5 block text-[11px] uppercase tracking-wider text-muted-foreground">Start</label>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            required
-            className="w-full bg-transparent text-[15px] outline-none"
-          />
-        </div>
-        <div className="px-4 py-2.5">
-          <label className="mb-0.5 block text-[11px] uppercase tracking-wider text-muted-foreground">Ende</label>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            required
-            className="w-full bg-transparent text-[15px] outline-none"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 border-b border-border/30">
-        <div className="border-r border-border/30 px-4 py-2.5">
-          <label className="mb-0.5 block text-[11px] uppercase tracking-wider text-muted-foreground">Pensum %</label>
-          <input
-            type="number"
-            value={pensum}
-            onChange={(e) => setPensum(Number(e.target.value))}
-            min={1}
-            max={100}
-            required
-            className="w-full bg-transparent text-[15px] outline-none"
-          />
-        </div>
-        <div className="border-r border-border/30 px-4 py-2.5">
-          <label className="mb-0.5 block text-[11px] uppercase tracking-wider text-muted-foreground">Lekt./Wo</label>
-          <input
-            type="number"
-            value={lessons}
-            onChange={(e) => setLessons(Number(e.target.value))}
-            min={1}
-            step={0.5}
-            required
-            className="w-full bg-transparent text-[15px] outline-none"
-          />
-        </div>
-        <div className="px-4 py-2.5">
-          <label className="mb-0.5 block text-[11px] uppercase tracking-wider text-muted-foreground">Min/Lekt.</label>
-          <input
-            type="number"
-            value={minutesPerLesson}
-            onChange={(e) => setMinutesPerLesson(Number(e.target.value))}
-            min={30}
-            max={90}
-            required
-            className="w-full bg-transparent text-[15px] outline-none"
-          />
-        </div>
-      </div>
-
-      <div className="flex">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="flex-1 border-r border-border/30 py-3 text-[17px] text-primary"
-        >
-          Abbrechen
-        </button>
-        <button
-          type="submit"
-          disabled={saving}
-          className="flex-1 py-3 text-[17px] font-semibold text-primary disabled:opacity-50"
-        >
-          {saving ? "..." : "Speichern"}
-        </button>
-      </div>
-    </form>
+      )}
+      {activePicker === "endDate" && (
+        <WheelDatePicker
+          value={endDate}
+          onConfirm={(v) => { setEndDate(v); setActivePicker(null); }}
+          onCancel={() => setActivePicker(null)}
+        />
+      )}
+      {activePicker === "pensum" && (
+        <WheelNumberPicker
+          value={pensum}
+          min={10}
+          max={100}
+          step={5}
+          suffix="%"
+          title="Pensum"
+          onConfirm={(v) => { setPensum(v); setActivePicker(null); }}
+          onCancel={() => setActivePicker(null)}
+        />
+      )}
+      {activePicker === "lessons" && (
+        <WheelNumberPicker
+          value={lessons}
+          min={1}
+          max={40}
+          fractions
+          title="Lektionen pro Woche"
+          onConfirm={(v) => { setLessons(v); setActivePicker(null); }}
+          onCancel={() => setActivePicker(null)}
+        />
+      )}
+      {activePicker === "minutes" && (
+        <WheelNumberPicker
+          value={minutesPerLesson}
+          min={30}
+          max={90}
+          step={5}
+          suffix="min"
+          title="Minuten pro Lektion"
+          onConfirm={(v) => { setMinutesPerLesson(v); setActivePicker(null); }}
+          onCancel={() => setActivePicker(null)}
+        />
+      )}
+    </>
   );
 }
 
@@ -364,8 +471,24 @@ function TimeSlotsEditor({
 }) {
   const [slots, setSlots] = useState<TimeSlot[]>(timeSlots);
   const [saving, setSaving] = useState(false);
-  const isDirty = JSON.stringify(slots) !== JSON.stringify(timeSlots);
+  const [editingPicker, setEditingPicker] = useState<{
+    index: number;
+    field: "start" | "end";
+  } | null>(null);
 
+  // Drag state — all via refs so moves are instant (no re-render per pixel)
+  const dragState = useRef<{
+    active: boolean;
+    index: number;
+    startY: number;
+    currentTarget: number;
+    rowHeight: number;
+  } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const isDirty = JSON.stringify(slots) !== JSON.stringify(timeSlots);
 
   function handleAdd() {
     setSlots([...slots, { start: "12:00", end: "12:45", label: "12:00" }]);
@@ -375,7 +498,7 @@ function TimeSlotsEditor({
     setSlots(slots.filter((_, i) => i !== index));
   }
 
-  function handleChange(index: number, field: keyof TimeSlot, value: string) {
+  function handleChange(index: number, field: "start" | "end", value: string) {
     const newSlots = [...slots];
     newSlots[index] = { ...newSlots[index], [field]: value };
     if (field === "start") {
@@ -392,10 +515,137 @@ function TimeSlotsEditor({
     setSaving(false);
   }
 
+  // Directly manipulate DOM for smooth 60fps dragging
+  const applyDragTransforms = useCallback((dragIdx: number, targetIdx: number, offsetY: number) => {
+    const rows = rowRefs.current;
+    const rh = dragState.current?.rowHeight ?? 0;
+    for (let i = 0; i < rows.length; i++) {
+      const el = rows[i];
+      if (!el) continue;
+      if (i === dragIdx) {
+        // Dragged element follows finger
+        el.style.transform = `translateY(${offsetY}px) scale(1.03)`;
+        el.style.zIndex = "50";
+        el.style.position = "relative";
+        el.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+        el.style.transition = "box-shadow 150ms ease, scale 150ms ease";
+      } else {
+        // Other rows shift smoothly to make room
+        let shift = 0;
+        if (dragIdx < targetIdx) {
+          // Dragging down: rows between dragIdx+1..targetIdx shift up
+          if (i > dragIdx && i <= targetIdx) shift = -rh;
+        } else if (dragIdx > targetIdx) {
+          // Dragging up: rows between targetIdx..dragIdx-1 shift down
+          if (i >= targetIdx && i < dragIdx) shift = rh;
+        }
+        el.style.transform = shift ? `translateY(${shift}px)` : "";
+        el.style.zIndex = "";
+        el.style.position = "";
+        el.style.boxShadow = "";
+        el.style.transition = "transform 200ms cubic-bezier(0.2, 0, 0, 1)";
+      }
+    }
+  }, []);
+
+  const clearTransforms = useCallback(() => {
+    for (const el of rowRefs.current) {
+      if (!el) continue;
+      el.style.transform = "";
+      el.style.zIndex = "";
+      el.style.position = "";
+      el.style.boxShadow = "";
+      el.style.transition = "";
+    }
+  }, []);
+
+  const startDrag = useCallback((index: number, clientY: number) => {
+    const row = rowRefs.current[index];
+    if (!row) return;
+    const rh = row.getBoundingClientRect().height + 8;
+    dragState.current = {
+      active: true,
+      index,
+      startY: clientY,
+      currentTarget: index,
+      rowHeight: rh,
+    };
+    setDragging(true);
+    if (navigator.vibrate) navigator.vibrate(20);
+    applyDragTransforms(index, index, 0);
+  }, [applyDragTransforms]);
+
+  const moveDrag = useCallback((clientY: number) => {
+    const ds = dragState.current;
+    if (!ds?.active) return;
+    const dy = clientY - ds.startY;
+    const steps = Math.round(dy / ds.rowHeight);
+    const len = rowRefs.current.filter(Boolean).length;
+    const target = Math.max(0, Math.min(len - 1, ds.index + steps));
+    ds.currentTarget = target;
+    applyDragTransforms(ds.index, target, dy);
+  }, [applyDragTransforms]);
+
+  const endDrag = useCallback(() => {
+    const ds = dragState.current;
+    if (!ds?.active) return;
+    const { index, currentTarget } = ds;
+    dragState.current = null;
+
+    // Animate to final position then reorder
+    clearTransforms();
+    setDragging(false);
+
+    if (index !== currentTarget) {
+      // Small delay to let clear transition finish
+      requestAnimationFrame(() => {
+        setSlots(prev => {
+          const newSlots = [...prev];
+          const [moved] = newSlots.splice(index, 1);
+          newSlots.splice(currentTarget, 0, moved);
+          return newSlots;
+        });
+      });
+    }
+  }, [clearTransforms]);
+
+  // Instant activation on grip — touch
+  function handleTouchStart(index: number, e: React.TouchEvent) {
+    e.preventDefault();
+    startDrag(index, e.touches[0].clientY);
+  }
+
+  function handleTouchMove(e: React.TouchEvent) {
+    if (!dragState.current?.active) return;
+    e.preventDefault();
+    moveDrag(e.touches[0].clientY);
+  }
+
+  function handleTouchEnd() {
+    endDrag();
+  }
+
+  // Instant activation on grip — mouse
+  function handleMouseDown(index: number, e: React.MouseEvent) {
+    e.preventDefault();
+    startDrag(index, e.clientY);
+
+    function onMouseMove(ev: MouseEvent) {
+      moveDrag(ev.clientY);
+    }
+    function onMouseUp() {
+      endDrag();
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    }
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  }
+
   return (
-    <div className="overflow-hidden rounded-xl bg-card p-4">
+    <div className="overflow-hidden rounded-2xl bg-card p-4 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-[15px] font-semibold flex items-center gap-2">
+        <h3 className="text-[15px] font-bold flex items-center gap-2">
           <Clock className="w-4 h-4 text-primary" />
           Raster für Stundenplan
         </h3>
@@ -403,32 +653,47 @@ function TimeSlotsEditor({
           <button
             onClick={handleSave}
             disabled={saving}
-            className="text-xs font-semibold text-white bg-primary px-3 py-1.5 rounded-lg disabled:opacity-50"
+            className="text-[13px] font-semibold text-white bg-primary px-4 py-1.5 rounded-full disabled:opacity-50"
           >
             {saving ? "..." : "Speichern"}
           </button>
         )}
       </div>
 
-      <div className="space-y-2">
+      <div ref={containerRef} className="space-y-2">
         {slots.map((slot, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <input
-              type="time"
-              value={slot.start}
-              onChange={(e) => handleChange(i, "start", e.target.value)}
-              className="flex-1 rounded-lg border border-border px-2 py-1.5 text-sm outline-none focus:border-primary bg-background"
-            />
+          <div
+            key={`${slot.start}-${slot.end}-${i}`}
+            ref={(el) => { rowRefs.current[i] = el; }}
+            className="flex items-center gap-1.5 rounded-xl"
+          >
+            {/* Drag handle — instant activation */}
+            <div
+              className={`shrink-0 touch-none cursor-grab p-1.5 text-muted-foreground/40 active:text-primary`}
+              onTouchStart={(e) => handleTouchStart(i, e)}
+              onTouchMove={(e) => handleTouchMove(e)}
+              onTouchEnd={handleTouchEnd}
+              onMouseDown={(e) => handleMouseDown(i, e)}
+            >
+              <GripVertical className="h-4 w-4" />
+            </div>
+
+            <button
+              onClick={() => !dragging && setEditingPicker({ index: i, field: "start" })}
+              className="flex-1 rounded-xl border border-border px-3 py-2.5 text-left text-[15px] font-medium tabular-nums bg-background active:bg-muted/50 transition-colors"
+            >
+              {slot.start}
+            </button>
             <span className="text-muted-foreground text-sm">–</span>
-            <input
-              type="time"
-              value={slot.end}
-              onChange={(e) => handleChange(i, "end", e.target.value)}
-              className="flex-1 rounded-lg border border-border px-2 py-1.5 text-sm outline-none focus:border-primary bg-background"
-            />
+            <button
+              onClick={() => !dragging && setEditingPicker({ index: i, field: "end" })}
+              className="flex-1 rounded-xl border border-border px-3 py-2.5 text-left text-[15px] font-medium tabular-nums bg-background active:bg-muted/50 transition-colors"
+            >
+              {slot.end}
+            </button>
             <button
               onClick={() => handleRemove(i)}
-              className="shrink-0 p-1.5 text-muted-foreground hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
+              className="shrink-0 p-2 text-muted-foreground hover:text-danger rounded-xl transition-colors"
             >
               <Trash2 className="h-4 w-4" />
             </button>
@@ -437,12 +702,23 @@ function TimeSlotsEditor({
 
         <button
           onClick={handleAdd}
-          className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border py-2 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+          className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border py-2.5 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors"
         >
           <Plus className="h-4 w-4" />
           Neuer Zeitslot
         </button>
       </div>
+
+      {editingPicker && (
+        <WheelTimePicker
+          value={slots[editingPicker.index][editingPicker.field]}
+          onConfirm={(val) => {
+            handleChange(editingPicker.index, editingPicker.field, val);
+            setEditingPicker(null);
+          }}
+          onCancel={() => setEditingPicker(null)}
+        />
+      )}
     </div>
   );
 }

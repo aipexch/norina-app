@@ -1,18 +1,19 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { Merriweather } from "next/font/google";
+import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { QueryProvider } from "@/components/QueryProvider";
 
-const merriweather = Merriweather({subsets:['latin'],variable:'--font-serif'});
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "Norina — Lehrerzeit",
+  title: "Timely — Lehrerzeit",
   description: "Zeiterfassung und Überstunden-Tracking für Lehrpersonen",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Norina",
+    title: "Timely",
   },
 };
 
@@ -21,7 +22,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#2563eb",
+  themeColor: "#F0F7F0",
 };
 
 export default function RootLayout({
@@ -30,8 +31,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="de-CH" suppressHydrationWarning className={cn("font-serif", merriweather.variable)}>
-      <body className="antialiased">{children}</body>
+    <html lang="de-CH" suppressHydrationWarning className={cn(inter.variable)}>
+      <body className="antialiased font-sans">
+        <QueryProvider>{children}</QueryProvider>
+      </body>
     </html>
   );
 }

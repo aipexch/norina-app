@@ -1,16 +1,8 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { type NextRequest } from "next/server";
+import { updateSession } from "@/lib/supabase/middleware";
 
-export function middleware(request: NextRequest) {
-  const path = request.nextUrl.pathname;
-
-  // Auth pages redirect to dashboard (no login needed)
-  if (path.startsWith("/anmelden") || path.startsWith("/registrieren") || path.startsWith("/auth")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
-  }
-
-  return NextResponse.next();
+export async function middleware(request: NextRequest) {
+  return await updateSession(request);
 }
 
 export const config = {

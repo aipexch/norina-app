@@ -2,42 +2,42 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Calendar, Clock, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Calendar, Clock, BarChart3, Settings } from "lucide-react";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/stundenplan", label: "Stundenplan", icon: Calendar },
-  { href: "/zeiterfassung", label: "Zeiten", icon: Clock },
-  { href: "/statistiken", label: "Statistiken", icon: BarChart3 },
+  { href: "/stundenplan", icon: Calendar },
+  { href: "/zeiterfassung", icon: Clock },
+  { href: "/dashboard", icon: LayoutDashboard },
+  { href: "/statistiken", icon: BarChart3 },
+  { href: "/einstellungen", icon: Settings },
 ] as const;
 
 export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="safe-bottom fixed bottom-0 left-0 right-0 z-50 border-t border-border/40 bg-white/80 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-lg items-center justify-around">
-        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+    <div className="fixed bottom-6 left-0 right-0 z-40 flex justify-center px-5">
+      <nav className="flex w-full max-w-[340px] items-center justify-around rounded-2xl bg-card px-2 py-2 shadow-lg">
+        {NAV_ITEMS.map(({ href, icon: Icon }) => {
           const isActive = pathname.startsWith(href);
           return (
             <Link
               key={href}
               href={href}
-              className={`flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[10px] ${
+              className={`flex h-11 w-11 items-center justify-center rounded-xl transition-colors ${
                 isActive
-                  ? "font-semibold text-primary"
+                  ? "bg-primary text-white"
                   : "text-muted-foreground"
               }`}
             >
               <Icon
-                className={`h-[22px] w-[22px] ${isActive ? "text-primary" : "text-muted-foreground"}`}
-                strokeWidth={isActive ? 2.2 : 1.5}
+                className="h-[20px] w-[20px]"
+                strokeWidth={isActive ? 2 : 1.5}
               />
-              <span>{label}</span>
             </Link>
           );
         })}
-      </div>
-    </nav>
+      </nav>
+    </div>
   );
 }

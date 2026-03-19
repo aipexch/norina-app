@@ -20,12 +20,27 @@ import {
   Bar,
   XAxis,
   YAxis,
-  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
+  Legend,
 } from "recharts";
+
+function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-xl bg-foreground/90 px-3 py-2 text-[12px] text-white shadow-lg backdrop-blur">
+      <p className="font-semibold mb-1">{label}</p>
+      {payload.map((p, i) => (
+        <p key={i} className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: p.color }} />
+          {p.name}: <span className="font-semibold">{typeof p.value === "number" ? (Math.abs(p.value) >= 60 ? formatDuration(Math.abs(p.value)) : `${Math.round(p.value)}min`) : p.value}</span>
+        </p>
+      ))}
+    </div>
+  );
+}
 
 export default function StatistikenPage() {
   const { activeSemester } = useSemesters();
@@ -37,7 +52,7 @@ export default function StatistikenPage() {
     return (
       <>
         <TopBar title="Statistiken" />
-        <div className="px-4 py-12 text-center text-sm text-muted-foreground">
+        <div className="px-5 py-12 text-center text-sm text-muted-foreground">
           Bitte erstelle zuerst ein Semester in den Einstellungen.
         </div>
       </>
@@ -48,7 +63,7 @@ export default function StatistikenPage() {
     return (
       <>
         <TopBar title="Statistiken" />
-        <div className="px-4 py-12 text-center text-sm text-muted-foreground">
+        <div className="px-5 py-12 text-center text-sm text-muted-foreground">
           Noch keine Daten vorhanden. Starte den Timer, um Statistiken zu sehen.
         </div>
       </>
@@ -58,108 +73,194 @@ export default function StatistikenPage() {
   return (
     <>
       <TopBar title="Statistiken" />
-      <div className="px-4 py-4 space-y-6">
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 gap-3">
-          <KPICard
-            icon={<TrendingUp className="h-5 w-5 text-accent" />}
-            label="Total Überstunden"
+      <div className="px-5 py-4 space-y-6">
+
+        {/* KPI Strip */}
+        <div className="grid grid-cols-3 gap-2">
+          <KPIMini
+            icon={<TrendingUp className="h-3.5 w-3.5 text-primary" />}
+            label="Überstunden"
             value={formatMinutes(stats.totalOvertimeMinutes)}
           />
-          <KPICard
-            icon={<Calendar className="h-5 w-5 text-primary" />}
-            label="Ø pro Woche"
+          <KPIMini
+            icon={<Calendar className="h-3.5 w-3.5 text-primary" />}
+            label="Ø / Woche"
             value={formatMinutes(stats.avgOvertimePerWeek)}
           />
-          <KPICard
-            icon={<Sunrise className="h-5 w-5 text-amber-500" />}
+          <KPIMini
+            icon={<Clock className="h-3.5 w-3.5 text-muted-foreground" />}
+            label="Tage"
+            value={`${stats.totalDaysTracked}`}
+          />
+          <KPIMini
+            icon={<Sunrise className="h-3.5 w-3.5 text-amber-500" />}
             label="Ø Ankunft"
             value={stats.avgArrivalTime}
           />
-          <KPICard
-            icon={<Sunset className="h-5 w-5 text-orange-500" />}
+          <KPIMini
+            icon={<Sunset className="h-3.5 w-3.5 text-orange-500" />}
             label="Ø Abgang"
             value={stats.avgDepartureTime}
           />
-          <KPICard
-            icon={<Clock className="h-5 w-5 text-muted-foreground" />}
-            label="Tage erfasst"
-            value={`${stats.totalDaysTracked}`}
-          />
-          {stats.longestDay && (
-            <KPICard
-              icon={<Award className="h-5 w-5 text-danger" />}
-              label="Längster Tag"
+          {stats.longestDay ? (
+            <KPIMini
+              icon={<Award className="h-3.5 w-3.5 text-danger" />}
+              label="Max Tag"
               value={formatDuration(stats.longestDay.minutes)}
-              subtitle={formatDateShort(stats.longestDay.date)}
             />
+          ) : (
+            <div />
           )}
         </div>
 
-        {/* Day of Week Chart */}
+        {/* Day of Week Chart — Overtime + Total */}
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Überstunden nach Wochentag
+          <h2 className="mb-3 px-1 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Wochentag-Vergleich
           </h2>
-          <div className="rounded-xl border border-border p-4">
-            <ResponsiveContainer width="100%" height={200}>
+          <div className="rounded-2xl bg-card p-4 shadow-sm">
+            <ResponsiveContainer width="100%" height={220}>
               <BarChart
                 data={stats.dayOfWeekStats.map((d) => ({
                   name: d.label,
                   überstunden: Math.round(d.avgOvertimeMinutes),
+                  tage: d.totalDays,
                 }))}
+                barGap={2}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 12, fill: "#6B7280" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
                 <YAxis
-                  tick={{ fontSize: 11 }}
-                  tickFormatter={(v) => `${Math.round(v)}min`}
+                  tick={{ fontSize: 11, fill: "#6B7280" }}
+                  tickFormatter={(v) => v >= 60 ? `${Math.round(v / 60)}h` : `${v}min`}
+                  axisLine={false}
+                  tickLine={false}
+                  width={45}
                 />
-                <Tooltip
-                  formatter={(value) => [`${value}min`, "Ø Überstunden"]}
-                />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)", radius: 8 }} />
                 <Bar
                   dataKey="überstunden"
-                  fill="#10b981"
-                  radius={[4, 4, 0, 0]}
+                  name="Ø Überstunden"
+                  fill="#15803D"
+                  radius={[8, 8, 0, 0]}
+                  maxBarSize={36}
                 />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </section>
 
-        {/* Weekly Overtime Chart */}
+        {/* Weekly Overtime + Total Chart */}
+        <section>
+          <h2 className="mb-3 px-1 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Wochenübersicht
+          </h2>
+          <div className="rounded-2xl bg-card p-4 shadow-sm">
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart
+                data={stats.weekStats.map((w) => ({
+                  name: w.label,
+                  überstunden: Math.round(w.overtimeMinutes),
+                  lektionen: Math.round(w.scheduledMinutes),
+                  total: Math.round(w.totalMinutes),
+                }))}
+                barGap={2}
+              >
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 11, fill: "#6B7280" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: "#6B7280" }}
+                  tickFormatter={(v) => `${Math.round(v / 60)}h`}
+                  axisLine={false}
+                  tickLine={false}
+                  width={35}
+                />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)", radius: 8 }} />
+                <Legend
+                  verticalAlign="top"
+                  height={30}
+                  iconType="circle"
+                  iconSize={8}
+                  formatter={(value) => <span className="text-[11px] text-muted-foreground">{value}</span>}
+                />
+                <Bar
+                  dataKey="lektionen"
+                  name="Lektionen"
+                  fill="#BBF7D0"
+                  radius={[8, 8, 0, 0]}
+                  maxBarSize={28}
+                />
+                <Bar
+                  dataKey="überstunden"
+                  name="Überstunden"
+                  fill="#15803D"
+                  radius={[8, 8, 0, 0]}
+                  maxBarSize={28}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+
+        {/* Cumulative Overtime Trend */}
         {stats.weekStats.length > 1 && (
           <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Überstunden pro Woche
+            <h2 className="mb-3 px-1 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Kumulierte Überstunden
             </h2>
-            <div className="rounded-xl border border-border p-4">
+            <div className="rounded-2xl bg-card p-4 shadow-sm">
               <ResponsiveContainer width="100%" height={200}>
-                <BarChart
-                  data={stats.weekStats.map((w) => ({
-                    name: w.label,
-                    überstunden: Math.round(w.overtimeMinutes),
-                  }))}
+                <AreaChart
+                  data={(() => {
+                    let cumulative = 0;
+                    return stats.weekStats.map((w) => {
+                      cumulative += w.overtimeMinutes;
+                      return {
+                        name: w.label,
+                        kumuliert: Math.round(cumulative),
+                      };
+                    });
+                  })()}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <defs>
+                    <linearGradient id="gradientGreen" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#15803D" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#15803D" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 11, fill: "#6B7280" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
                   <YAxis
-                    tick={{ fontSize: 11 }}
-                    tickFormatter={(v) => `${Math.round(v / 60)}h`}
+                    tick={{ fontSize: 11, fill: "#6B7280" }}
+                    tickFormatter={(v) => v >= 60 || v <= -60 ? `${Math.round(v / 60)}h` : `${v}min`}
+                    axisLine={false}
+                    tickLine={false}
+                    width={35}
                   />
-                  <Tooltip
-                    formatter={(value) => [
-                      formatMinutes(Number(value)),
-                      "Überstunden",
-                    ]}
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area
+                    type="monotone"
+                    dataKey="kumuliert"
+                    name="Total"
+                    stroke="#15803D"
+                    strokeWidth={2.5}
+                    fill="url(#gradientGreen)"
+                    dot={{ r: 4, fill: "#15803D", strokeWidth: 0 }}
+                    activeDot={{ r: 6, fill: "#15803D", strokeWidth: 2, stroke: "#fff" }}
                   />
-                  <Bar
-                    dataKey="überstunden"
-                    fill="#2563eb"
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
+                </AreaChart>
               </ResponsiveContainer>
             </div>
           </section>
@@ -168,46 +269,56 @@ export default function StatistikenPage() {
         {/* Monthly Trend */}
         {stats.monthStats.length > 1 && (
           <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            <h2 className="mb-3 px-1 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
               Monatlicher Trend
             </h2>
-            <div className="rounded-xl border border-border p-4">
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart
+            <div className="rounded-2xl bg-card p-4 shadow-sm">
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart
                   data={stats.monthStats.map((m) => ({
                     name: m.label,
                     überstunden: Math.round(m.overtimeMinutes),
                     total: Math.round(m.totalMinutes),
+                    lektionen: Math.round(m.scheduledMinutes),
                   }))}
+                  barGap={2}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 11, fill: "#6B7280" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
                   <YAxis
-                    tick={{ fontSize: 11 }}
+                    tick={{ fontSize: 11, fill: "#6B7280" }}
                     tickFormatter={(v) => `${Math.round(v / 60)}h`}
+                    axisLine={false}
+                    tickLine={false}
+                    width={35}
                   />
-                  <Tooltip
-                    formatter={(value, name) => [
-                      formatDuration(Number(value)),
-                      name === "überstunden" ? "Überstunden" : "Total an Schule",
-                    ]}
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)", radius: 8 }} />
+                  <Legend
+                    verticalAlign="top"
+                    height={30}
+                    iconType="circle"
+                    iconSize={8}
+                    formatter={(value) => <span className="text-[11px] text-muted-foreground">{value}</span>}
                   />
-                  <Line
-                    type="monotone"
-                    dataKey="überstunden"
-                    stroke="#10b981"
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                  />
-                  <Line
-                    type="monotone"
+                  <Bar
                     dataKey="total"
-                    stroke="#2563eb"
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                    strokeDasharray="4 4"
+                    name="Total an Schule"
+                    fill="#BBF7D0"
+                    radius={[8, 8, 0, 0]}
+                    maxBarSize={28}
                   />
-                </LineChart>
+                  <Bar
+                    dataKey="überstunden"
+                    name="Überstunden"
+                    fill="#15803D"
+                    radius={[8, 8, 0, 0]}
+                    maxBarSize={28}
+                  />
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </section>
@@ -217,23 +328,20 @@ export default function StatistikenPage() {
   );
 }
 
-function KPICard({
+function KPIMini({
   icon,
   label,
   value,
-  subtitle,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
-  subtitle?: string;
 }) {
   return (
-    <div className="rounded-xl border border-border p-3">
+    <div className="rounded-2xl bg-card px-3 py-2.5 shadow-sm">
       <div className="mb-1">{icon}</div>
-      <p className="text-lg font-bold">{value}</p>
-      <p className="text-[11px] text-muted-foreground">{label}</p>
-      {subtitle && <p className="text-[10px] text-muted-foreground">{subtitle}</p>}
+      <p className="text-[15px] font-bold tracking-tight leading-tight">{value}</p>
+      <p className="text-[10px] text-muted-foreground">{label}</p>
     </div>
   );
 }

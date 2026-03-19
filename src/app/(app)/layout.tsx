@@ -1,14 +1,12 @@
 import BottomNav from "@/components/layout/BottomNav";
 
-export const dynamic = "force-dynamic";
-
 export default function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="mx-auto min-h-dvh max-w-lg bg-background pb-20">
+    <div className="safe-top mx-auto min-h-dvh max-w-lg bg-background pt-6 pb-32">
       {children}
       <BottomNav />
     </div>
