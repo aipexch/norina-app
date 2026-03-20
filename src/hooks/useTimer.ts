@@ -82,7 +82,7 @@ export function useTimer(semesterId: string | null) {
       const now = new Date().toISOString();
       if (user) {
         const supabase = createClient();
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("time_records")
           .insert({
             user_id: user.id,
@@ -96,6 +96,7 @@ export function useTimer(semesterId: string | null) {
           })
           .select()
           .single();
+        if (error) throw new Error(`Timer start failed: ${error.message}`);
         return data as TimeRecord;
       } else {
         const newRecord: TimeRecord = {
@@ -132,10 +133,11 @@ export function useTimer(semesterId: string | null) {
 
       if (user) {
         const supabase = createClient();
-        await supabase
+        const { error } = await supabase
           .from("time_records")
           .update({ clock_out: now, updated_at: now })
           .eq("id", id);
+        if (error) throw new Error(`Timer stop failed: ${error.message}`);
       } else {
         saveLocal(
           loadLocal().map((r) =>

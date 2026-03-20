@@ -18,6 +18,7 @@ import Link from "next/link";
 
 export default function DashboardPage() {
   const [breakRecordId, setBreakRecordId] = useState<string | null>(null);
+  const [timerError, setTimerError] = useState<string | null>(null);
   const { activeSemester, loading: semesterLoading } = useSemesters();
   const { state, elapsedSeconds, startTimer, stopTimer, loading: timerLoading } = useTimer(
     activeSemester?.id ?? null
@@ -46,11 +47,16 @@ export default function DashboardPage() {
   const weekOvertime = weekTotalMinutes - weekScheduledMinutes;
 
   async function handleTimerToggle() {
-    if (state === "idle") {
-      await startTimer();
-    } else {
-      const id = await stopTimer();
-      if (id) setBreakRecordId(id);
+    setTimerError(null);
+    try {
+      if (state === "idle") {
+        await startTimer();
+      } else {
+        const id = await stopTimer();
+        if (id) setBreakRecordId(id);
+      }
+    } catch (err) {
+      setTimerError(err instanceof Error ? err.message : "Timer-Fehler");
     }
   }
 
@@ -133,6 +139,11 @@ export default function DashboardPage() {
         <p className="mt-3 text-[13px] font-medium text-muted-foreground">
           {state === "idle" ? "Starten" : "Stoppen"}
         </p>
+        {timerError && (
+          <p className="mt-2 rounded-xl bg-danger/10 px-3 py-2 text-[12px] text-danger">
+            {timerError}
+          </p>
+        )}
       </div>
 
       {/* Today's Summary */}
