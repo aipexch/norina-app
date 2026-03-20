@@ -60,11 +60,12 @@ export function useTimetable(semesterId: string | null) {
     ) => {
       if (user) {
         const supabase = createClient();
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("timetable_entries")
           .insert({ ...entry, user_id: user.id })
           .select()
           .single();
+        if (error) throw new Error(error.message);
         return data as TimetableEntry;
       } else {
         const now = new Date().toISOString();
@@ -115,10 +116,11 @@ export function useTimetable(semesterId: string | null) {
     }) => {
       if (user) {
         const supabase = createClient();
-        await supabase
+        const { error } = await supabase
           .from("timetable_entries")
           .update({ ...updates, updated_at: new Date().toISOString() })
           .eq("id", id);
+        if (error) throw new Error(error.message);
       } else {
         saveLocal(
           loadLocal().map((e) =>
@@ -155,7 +157,8 @@ export function useTimetable(semesterId: string | null) {
     mutationFn: async (id: string) => {
       if (user) {
         const supabase = createClient();
-        await supabase.from("timetable_entries").delete().eq("id", id);
+        const { error } = await supabase.from("timetable_entries").delete().eq("id", id);
+        if (error) throw new Error(error.message);
       } else {
         saveLocal(loadLocal().filter((e) => e.id !== id));
       }

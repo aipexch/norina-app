@@ -67,7 +67,7 @@ export function useTimeRecords(semesterId: string | null) {
     }) => {
       if (user) {
         const supabase = createClient();
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("time_records")
           .insert({
             user_id: user.id,
@@ -81,6 +81,7 @@ export function useTimeRecords(semesterId: string | null) {
           })
           .select()
           .single();
+        if (error) throw new Error(error.message);
         return data as TimeRecord;
       } else {
         const now = new Date().toISOString();
@@ -143,10 +144,11 @@ export function useTimeRecords(semesterId: string | null) {
     }) => {
       if (user) {
         const supabase = createClient();
-        await supabase
+        const { error } = await supabase
           .from("time_records")
           .update({ ...updates, updated_at: new Date().toISOString() })
           .eq("id", id);
+        if (error) throw new Error(error.message);
       } else {
         saveLocal(
           loadLocal().map((r) =>
@@ -188,7 +190,8 @@ export function useTimeRecords(semesterId: string | null) {
     mutationFn: async (id: string) => {
       if (user) {
         const supabase = createClient();
-        await supabase.from("time_records").delete().eq("id", id);
+        const { error } = await supabase.from("time_records").delete().eq("id", id);
+        if (error) throw new Error(error.message);
       } else {
         saveLocal(loadLocal().filter((r) => r.id !== id));
       }

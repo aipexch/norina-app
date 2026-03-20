@@ -55,11 +55,12 @@ export function useSemesters() {
             .update({ is_active: false })
             .eq("user_id", user.id);
         }
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("semesters")
           .insert({ ...semester, user_id: user.id })
           .select()
           .single();
+        if (error) throw new Error(error.message);
         return data as Semester;
       } else {
         const data = loadLocal();
@@ -123,10 +124,11 @@ export function useSemesters() {
             .update({ is_active: false })
             .eq("user_id", user.id);
         }
-        await supabase
+        const { error } = await supabase
           .from("semesters")
           .update({ ...updates, updated_at: new Date().toISOString() })
           .eq("id", id);
+        if (error) throw new Error(error.message);
       } else {
         let data = loadLocal();
         if (updates.is_active) {
@@ -169,7 +171,8 @@ export function useSemesters() {
     mutationFn: async (id: string) => {
       if (user) {
         const supabase = createClient();
-        await supabase.from("semesters").delete().eq("id", id);
+        const { error } = await supabase.from("semesters").delete().eq("id", id);
+        if (error) throw new Error(error.message);
       } else {
         saveLocal(loadLocal().filter((s) => s.id !== id));
       }
