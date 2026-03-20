@@ -71,41 +71,49 @@ export default function EinstellungenPage() {
 
         if (user) {
           const supabase = createClient();
+          const idMap = new Map<string, string>(); // old semester ID → new semester ID
 
-          // Import semesters
+          // 1. Import semesters and capture new IDs
           if (data.norina_semesters?.length) {
             for (const sem of data.norina_semesters) {
+              const oldId = sem.id;
               const { id, user_id, created_at, updated_at, ...rest } = sem;
-              await supabase.from("semesters").insert({ ...rest, user_id: user.id });
-            }
-          }
-
-          // Import timetable entries (need new semester IDs)
-          // For simplicity, reload semesters first to get the new IDs
-          const { data: newSemesters } = await supabase.from("semesters").select("*");
-          const semesterNameMap = new Map<string, string>();
-          if (data.norina_semesters && newSemesters) {
-            for (const oldSem of data.norina_semesters) {
-              const match = newSemesters.find((s: { name: string }) => s.name === oldSem.name);
-              if (match) semesterNameMap.set(oldSem.id, match.id);
-            }
-          }
-
-          if (data.norina_timetable?.length) {
-            for (const entry of data.norina_timetable) {
-              const { id, user_id, created_at, updated_at, semester_id, ...rest } = entry;
-              const newSemId = semesterNameMap.get(semester_id);
-              if (newSemId) {
-                await supabase.from("timetable_entries").insert({ ...rest, semester_id: newSemId, user_id: user.id });
+              const { data: inserted, error } = await supabase
+                .from("semesters")
+                .insert({ ...rest, user_id: user.id })
+                .select("id")
+                .single();
+              if (!error && inserted) {
+                idMap.set(oldId, inserted.id);
               }
             }
           }
 
+          // 2. Import timetable entries with mapped semester IDs
+          if (data.norina_timetable?.length) {
+            for (const entry of data.norina_timetable) {
+              const { id, user_id, created_at, updated_at, semester_id, ...rest } = entry;
+              const newSemId = idMap.get(semester_id);
+              if (newSemId) {
+                await supabase.from("timetable_entries").insert({
+                  ...rest,
+                  semester_id: newSemId,
+                  user_id: user.id,
+                });
+              }
+            }
+          }
+
+          // 3. Import time records with mapped semester IDs
           if (data.norina_records?.length) {
             for (const record of data.norina_records) {
               const { id, user_id, created_at, updated_at, semester_id, ...rest } = record;
-              const newSemId = semester_id ? semesterNameMap.get(semester_id) : null;
-              await supabase.from("time_records").insert({ ...rest, semester_id: newSemId ?? null, user_id: user.id });
+              const newSemId = semester_id ? idMap.get(semester_id) : null;
+              await supabase.from("time_records").insert({
+                ...rest,
+                semester_id: newSemId ?? null,
+                user_id: user.id,
+              });
             }
           }
 
@@ -285,7 +293,7 @@ export default function EinstellungenPage() {
 
         {/* Version */}
         <p className="text-center text-[12px] text-muted-foreground/60">
-          Timely v0.9
+          Timely v1.0
         </p>
 
       </div>
