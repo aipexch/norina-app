@@ -3,6 +3,7 @@ import "./globals.css";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { QueryProvider } from "@/components/QueryProvider";
+import { AuthProvider } from "@/hooks/useAuth";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -33,7 +34,7 @@ export default function RootLayout({
   return (
     <html lang="de-CH" suppressHydrationWarning className={cn(inter.variable)}>
       <body className="antialiased font-sans">
-        <QueryProvider>{children}</QueryProvider>
+        <QueryProvider><AuthProvider>{children}</AuthProvider></QueryProvider>
       </body>
     </html>
   );

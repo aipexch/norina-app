@@ -31,7 +31,7 @@ function sortEntries(entries: TimetableEntry[]): TimetableEntry[] {
 export function useTimetable(semesterId: string | null) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const queryKey = ["timetable", semesterId] as const;
+  const queryKey = ["timetable", semesterId, user?.id ?? "local"] as const;
 
   const { data: entries = [], isLoading: loading } = useQuery({
     queryKey,
@@ -39,12 +39,13 @@ export function useTimetable(semesterId: string | null) {
       if (!semesterId) return [];
       if (user) {
         const supabase = createClient();
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("timetable_entries")
-          .select("id,semester_id,day_of_week,start_time,end_time,subject,is_pause,notes")
+          .select("*")
           .eq("semester_id", semesterId)
           .order("day_of_week")
           .order("start_time");
+        if (error) throw new Error(error.message);
         return (data ?? []) as TimetableEntry[];
       } else {
         const all = loadLocal();

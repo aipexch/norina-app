@@ -26,14 +26,15 @@ export function useSemesters() {
   const queryClient = useQueryClient();
 
   const { data: semesters = [], isLoading: loading } = useQuery({
-    queryKey: QUERY_KEY,
+    queryKey: [...QUERY_KEY, user?.id ?? "local"],
     queryFn: async () => {
       if (user) {
         const supabase = createClient();
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("semesters")
-          .select("id,name,start_date,end_date,pensum_percent,lessons_per_week,minutes_per_lesson,is_active,time_slots,created_at")
+          .select("*")
           .order("created_at", { ascending: false });
+        if (error) throw new Error(error.message);
         return (data ?? []) as Semester[];
       }
       return loadLocal();

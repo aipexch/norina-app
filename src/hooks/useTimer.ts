@@ -40,14 +40,14 @@ export function useTimer(semesterId: string | null) {
 
     if (user) {
       const supabase = createClient();
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("time_records")
-        .select("id,semester_id,date,clock_in,clock_out,break_minutes,is_manual,notes")
+        .select("*")
         .is("clock_out", null)
         .limit(1)
         .maybeSingle();
-      running = (data as TimeRecord) ?? null;
-    } else {
+      if (!error) running = (data as TimeRecord) ?? null;
+    } else if (user === null) {
       running = loadLocal().find((r) => !r.clock_out) ?? null;
     }
 

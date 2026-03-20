@@ -30,7 +30,7 @@ function sortRecords(records: TimeRecord[]): TimeRecord[] {
 export function useTimeRecords(semesterId: string | null) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const queryKey = ["time-records", semesterId] as const;
+  const queryKey = ["time-records", semesterId, user?.id ?? "local"] as const;
 
   const { data: records = [], isLoading: loading } = useQuery({
     queryKey,
@@ -39,13 +39,14 @@ export function useTimeRecords(semesterId: string | null) {
         const supabase = createClient();
         let query = supabase
           .from("time_records")
-          .select("id,semester_id,date,clock_in,clock_out,break_minutes,is_manual,notes")
+          .select("*")
           .order("date", { ascending: false })
           .order("clock_in", { ascending: false });
         if (semesterId) {
           query = query.eq("semester_id", semesterId);
         }
-        const { data } = await query;
+        const { data, error } = await query;
+        if (error) throw new Error(error.message);
         return (data ?? []) as TimeRecord[];
       } else {
         const all = loadLocal();
