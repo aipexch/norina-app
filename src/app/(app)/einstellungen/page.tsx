@@ -2,6 +2,8 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useSemesters } from "@/hooks/useSemester";
+import { useAuth } from "@/hooks/useAuth";
+import { createClient } from "@/lib/supabase/client";
 import TopBar from "@/components/layout/TopBar";
 import { Plus, Check, Trash2, Clock, Download, Upload, GripVertical, X, Calendar, Percent, BookOpen, Timer } from "lucide-react";
 import { formatDateShort } from "@/lib/date-utils";
@@ -13,29 +15,45 @@ import type { TimeSlot } from "@/types";
 const STORAGE_KEYS = ["norina_semesters", "norina_timetable", "norina_records"] as const;
 
 export default function EinstellungenPage() {
-  const { semesters, activeSemester, createSemester, updateSemester, deleteSemester } = useSemesters();
+  const { user } = useAuth();
+  const { semesters, activeSemester, createSemester, updateSemester, deleteSemester, refetch } = useSemesters();
   const [showForm, setShowForm] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  function handleExport() {
-    const data: Record<string, unknown> = {};
-    for (const key of STORAGE_KEYS) {
-      const raw = localStorage.getItem(key);
-      if (raw !== null) {
-        try {
-          data[key] = JSON.parse(raw);
-        } catch {
-          data[key] = raw;
+  async function handleExport() {
+    if (user) {
+      const supabase = createClient();
+      const [semRes, ttRes, trRes] = await Promise.all([
+        supabase.from("semesters").select("*"),
+        supabase.from("timetable_entries").select("*"),
+        supabase.from("time_records").select("*"),
+      ]);
+      const data = {
+        norina_semesters: semRes.data ?? [],
+        norina_timetable: ttRes.data ?? [],
+        norina_records: trRes.data ?? [],
+      };
+      downloadJson(data);
+    } else {
+      const data: Record<string, unknown> = {};
+      for (const key of STORAGE_KEYS) {
+        const raw = localStorage.getItem(key);
+        if (raw !== null) {
+          try { data[key] = JSON.parse(raw); } catch { data[key] = raw; }
         }
       }
+      downloadJson(data);
     }
+  }
+
+  function downloadJson(data: Record<string, unknown>) {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    const today = new Date().toISOString().slice(0, 10);
-    a.download = `timely-backup-${today}.json`;
+    a.download = `timely-backup-${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -46,17 +64,65 @@ export default function EinstellungenPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
+        setImporting(true);
         const data = JSON.parse(ev.target?.result as string);
-        for (const key of STORAGE_KEYS) {
-          if (key in data) {
-            localStorage.setItem(key, JSON.stringify(data[key]));
+
+        if (user) {
+          const supabase = createClient();
+
+          // Import semesters
+          if (data.norina_semesters?.length) {
+            for (const sem of data.norina_semesters) {
+              const { id, user_id, created_at, updated_at, ...rest } = sem;
+              await supabase.from("semesters").insert({ ...rest, user_id: user.id });
+            }
           }
+
+          // Import timetable entries (need new semester IDs)
+          // For simplicity, reload semesters first to get the new IDs
+          const { data: newSemesters } = await supabase.from("semesters").select("*");
+          const semesterNameMap = new Map<string, string>();
+          if (data.norina_semesters && newSemesters) {
+            for (const oldSem of data.norina_semesters) {
+              const match = newSemesters.find((s: { name: string }) => s.name === oldSem.name);
+              if (match) semesterNameMap.set(oldSem.id, match.id);
+            }
+          }
+
+          if (data.norina_timetable?.length) {
+            for (const entry of data.norina_timetable) {
+              const { id, user_id, created_at, updated_at, semester_id, ...rest } = entry;
+              const newSemId = semesterNameMap.get(semester_id);
+              if (newSemId) {
+                await supabase.from("timetable_entries").insert({ ...rest, semester_id: newSemId, user_id: user.id });
+              }
+            }
+          }
+
+          if (data.norina_records?.length) {
+            for (const record of data.norina_records) {
+              const { id, user_id, created_at, updated_at, semester_id, ...rest } = record;
+              const newSemId = semester_id ? semesterNameMap.get(semester_id) : null;
+              await supabase.from("time_records").insert({ ...rest, semester_id: newSemId ?? null, user_id: user.id });
+            }
+          }
+
+          setImporting(false);
+          refetch();
+          window.location.reload();
+        } else {
+          for (const key of STORAGE_KEYS) {
+            if (key in data) {
+              localStorage.setItem(key, JSON.stringify(data[key]));
+            }
+          }
+          window.location.reload();
         }
-        window.location.reload();
-      } catch {
-        alert("Ungültige Datei.");
+      } catch (err) {
+        setImporting(false);
+        alert(`Import fehlgeschlagen: ${err instanceof Error ? err.message : "Unbekannter Fehler"}`);
       }
     };
     reader.readAsText(file);
@@ -204,7 +270,7 @@ export default function EinstellungenPage() {
                 className="flex w-full items-center gap-3 px-4 py-3.5 text-[15px] font-medium active:bg-muted/50 transition-colors"
               >
                 <Upload className="h-5 w-5 text-primary" />
-                <span>Backup importieren</span>
+                <span>{importing ? "Importiert..." : "Backup importieren"}</span>
               </button>
               <input
                 ref={fileInputRef}
@@ -219,7 +285,7 @@ export default function EinstellungenPage() {
 
         {/* Version */}
         <p className="text-center text-[12px] text-muted-foreground/60">
-          Timely v0.8
+          Timely v0.9
         </p>
 
       </div>
