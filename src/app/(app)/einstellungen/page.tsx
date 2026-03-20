@@ -71,53 +71,93 @@ export default function EinstellungenPage() {
 
         if (user) {
           const supabase = createClient();
-          const idMap = new Map<string, string>(); // old semester ID → new semester ID
+          const idMap = new Map<string, string>();
+          const errors: string[] = [];
+          let semOk = 0, ttOk = 0, recOk = 0;
 
-          // 1. Import semesters and capture new IDs
+          // 1. Import semesters
           if (data.norina_semesters?.length) {
             for (const sem of data.norina_semesters) {
               const oldId = sem.id;
-              const { id, user_id, created_at, updated_at, ...rest } = sem;
               const { data: inserted, error } = await supabase
                 .from("semesters")
-                .insert({ ...rest, user_id: user.id })
+                .insert({
+                  name: sem.name,
+                  start_date: sem.start_date,
+                  end_date: sem.end_date,
+                  pensum_percent: sem.pensum_percent ?? 100,
+                  lessons_per_week: sem.lessons_per_week,
+                  minutes_per_lesson: sem.minutes_per_lesson ?? 45,
+                  is_active: sem.is_active ?? false,
+                  time_slots: sem.time_slots ?? [],
+                  user_id: user.id,
+                })
                 .select("id")
                 .single();
-              if (!error && inserted) {
+              if (error) {
+                errors.push(`Semester "${sem.name}": ${error.message}`);
+              } else if (inserted) {
                 idMap.set(oldId, inserted.id);
+                semOk++;
               }
             }
           }
 
-          // 2. Import timetable entries with mapped semester IDs
+          // 2. Import timetable entries
           if (data.norina_timetable?.length) {
             for (const entry of data.norina_timetable) {
-              const { id, user_id, created_at, updated_at, semester_id, ...rest } = entry;
-              const newSemId = idMap.get(semester_id);
-              if (newSemId) {
-                await supabase.from("timetable_entries").insert({
-                  ...rest,
+              const newSemId = idMap.get(entry.semester_id);
+              if (!newSemId) continue;
+              const { error } = await supabase
+                .from("timetable_entries")
+                .insert({
                   semester_id: newSemId,
+                  day_of_week: entry.day_of_week,
+                  start_time: entry.start_time,
+                  end_time: entry.end_time,
+                  subject: entry.subject,
+                  is_pause: entry.is_pause ?? false,
+                  notes: entry.notes ?? null,
                   user_id: user.id,
                 });
+              if (error) {
+                errors.push(`Stundenplan ${entry.subject}: ${error.message}`);
+              } else {
+                ttOk++;
               }
             }
           }
 
-          // 3. Import time records with mapped semester IDs
+          // 3. Import time records
           if (data.norina_records?.length) {
             for (const record of data.norina_records) {
-              const { id, user_id, created_at, updated_at, semester_id, ...rest } = record;
-              const newSemId = semester_id ? idMap.get(semester_id) : null;
-              await supabase.from("time_records").insert({
-                ...rest,
-                semester_id: newSemId ?? null,
-                user_id: user.id,
-              });
+              const newSemId = record.semester_id ? idMap.get(record.semester_id) : null;
+              const { error } = await supabase
+                .from("time_records")
+                .insert({
+                  semester_id: newSemId ?? null,
+                  date: record.date,
+                  clock_in: record.clock_in,
+                  clock_out: record.clock_out ?? null,
+                  break_minutes: record.break_minutes ?? 0,
+                  is_manual: record.is_manual ?? false,
+                  notes: record.notes ?? null,
+                  user_id: user.id,
+                });
+              if (error) {
+                errors.push(`Record ${record.date}: ${error.message}`);
+              } else {
+                recOk++;
+              }
             }
           }
 
           setImporting(false);
+
+          if (errors.length > 0) {
+            alert(`Import: ${semOk} Semester, ${ttOk} Stundenplan, ${recOk} Zeiten OK.\n\nFehler:\n${errors.slice(0, 5).join("\n")}`);
+          }
+
           refetch();
           window.location.reload();
         } else {
@@ -293,7 +333,7 @@ export default function EinstellungenPage() {
 
         {/* Version */}
         <p className="text-center text-[12px] text-muted-foreground/60">
-          Timely v1.0
+          Timely v1.1
         </p>
 
       </div>
