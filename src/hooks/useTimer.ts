@@ -45,7 +45,7 @@ export function useTimer(semesterId: string | null) {
         .select("id,semester_id,date,clock_in,clock_out,break_minutes,is_manual,notes")
         .is("clock_out", null)
         .limit(1)
-        .single();
+        .maybeSingle();
       running = (data as TimeRecord) ?? null;
     } else {
       running = loadLocal().find((r) => !r.clock_out) ?? null;
