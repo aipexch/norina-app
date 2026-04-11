@@ -4,15 +4,15 @@ import { NextResponse, type NextRequest } from "next/server";
 export async function updateSession(request: NextRequest) {
   // Skip auth check on localhost for development
   const hostname = request.nextUrl.hostname;
-  if (hostname === "localhost" || hostname === "127.0.0.1") {
+  if (process.env.NODE_ENV === "development" && (hostname === "localhost" || hostname === "127.0.0.1")) {
     return NextResponse.next({ request });
   }
 
-  // If env vars are missing, skip auth (prevents crash)
+  // If env vars are missing, return 500 instead of allowing unauthenticated access
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!supabaseUrl || !supabaseKey) {
-    return NextResponse.next({ request });
+    return new NextResponse("Server configuration error", { status: 500 });
   }
 
   let supabaseResponse = NextResponse.next({ request });
