@@ -562,6 +562,11 @@ function SemesterForm({
             </div>
           </div>
 
+          {/* Info text */}
+          <p className="text-[12px] text-muted-foreground">
+            Das neue Semester wird automatisch aktiviert. Der Stundenplan des bisherigen Semesters bleibt erhalten.
+          </p>
+
           {/* Buttons */}
           <div className="flex gap-3">
             <button

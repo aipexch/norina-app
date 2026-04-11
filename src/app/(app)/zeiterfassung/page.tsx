@@ -7,7 +7,8 @@ import { useTimetable } from "@/hooks/useTimetable";
 import { buildDailySummary, formatMinutes, formatDuration } from "@/lib/calculations";
 import { formatDateShort, formatTime, formatWeekdayShort } from "@/lib/date-utils";
 import { BreakSheet } from "@/components/BreakSheet";
-import { Plus, X, Clock, PenLine, Trash2, BookOpen, TrendingUp } from "lucide-react";
+import { Plus, X, Clock, PenLine, Trash2, BookOpen, TrendingUp, AlertCircle } from "lucide-react";
+import Link from "next/link";
 import WheelTimePicker from "@/components/WheelTimePicker";
 import WheelDatePicker from "@/components/WheelDatePicker";
 import type { DailySummary, TimeRecord } from "@/types";
@@ -56,6 +57,23 @@ export default function ZeiterfassungPage() {
         </button>
       </header>
       <div className="px-5 py-4 space-y-4">
+
+        {!activeSemester && (
+          <Link
+            href="/einstellungen"
+            className="flex items-start gap-3 rounded-2xl bg-amber-50 dark:bg-amber-950/30 p-4 shadow-sm"
+          >
+            <AlertCircle className="h-5 w-5 shrink-0 text-amber-500" />
+            <div>
+              <p className="text-[15px] font-semibold text-amber-900 dark:text-amber-200">
+                Kein aktives Semester
+              </p>
+              <p className="text-[13px] text-amber-700 dark:text-amber-400">
+                Erstelle oder aktiviere ein Semester in den Einstellungen, um Zeiten zu erfassen.
+              </p>
+            </div>
+          </Link>
+        )}
 
         {showForm && (
           <ManualEntryForm

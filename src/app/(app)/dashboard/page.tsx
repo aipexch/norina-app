@@ -94,15 +94,15 @@ export default function DashboardPage() {
       {!activeSemester && (
         <Link
           href="/einstellungen"
-          className="flex items-start gap-3 rounded-2xl bg-amber-50 p-4 shadow-sm"
+          className="flex items-start gap-3 rounded-2xl bg-amber-50 dark:bg-amber-950/30 p-4 shadow-sm"
         >
           <AlertCircle className="h-5 w-5 shrink-0 text-amber-500" />
           <div>
-            <p className="text-[15px] font-semibold text-amber-900">
+            <p className="text-[15px] font-semibold text-amber-900 dark:text-amber-200">
               Kein aktives Semester
             </p>
-            <p className="text-[13px] text-amber-700">
-              Tippe hier, um ein Semester zu erstellen.
+            <p className="text-[13px] text-amber-700 dark:text-amber-400">
+              Erstelle oder aktiviere ein Semester in den Einstellungen, um den Timer und die Zeiterfassung zu nutzen.
             </p>
           </div>
         </Link>
