@@ -24,9 +24,10 @@ function saveLocal(data: Semester[]) {
 export function useSemesters() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const queryKey = [...QUERY_KEY, user?.id ?? "local"] as const;
 
   const { data: semesters = [], isLoading: loading } = useQuery({
-    queryKey: [...QUERY_KEY, user?.id ?? "local"],
+    queryKey,
     queryFn: async () => {
       if (user) {
         const supabase = createClient();
@@ -81,8 +82,8 @@ export function useSemesters() {
       }
     },
     onMutate: async (semester) => {
-      await queryClient.cancelQueries({ queryKey: QUERY_KEY });
-      const previous = queryClient.getQueryData<Semester[]>(QUERY_KEY);
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<Semester[]>(queryKey);
       const now = new Date().toISOString();
       const optimistic: Semester = {
         ...semester,
@@ -91,7 +92,7 @@ export function useSemesters() {
         created_at: now,
         updated_at: now,
       };
-      queryClient.setQueryData<Semester[]>(QUERY_KEY, (old = []) => {
+      queryClient.setQueryData<Semester[]>(queryKey, (old = []) => {
         const base = semester.is_active
           ? old.map((s) => ({ ...s, is_active: false }))
           : old;
@@ -101,11 +102,11 @@ export function useSemesters() {
     },
     onError: (_err, _vars, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(QUERY_KEY, context.previous);
+        queryClient.setQueryData(queryKey, context.previous);
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey });
     },
   });
 
@@ -144,9 +145,9 @@ export function useSemesters() {
       }
     },
     onMutate: async ({ id, updates }) => {
-      await queryClient.cancelQueries({ queryKey: QUERY_KEY });
-      const previous = queryClient.getQueryData<Semester[]>(QUERY_KEY);
-      queryClient.setQueryData<Semester[]>(QUERY_KEY, (old = []) => {
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<Semester[]>(queryKey);
+      queryClient.setQueryData<Semester[]>(queryKey, (old = []) => {
         let result = updates.is_active
           ? old.map((s) => ({ ...s, is_active: false }))
           : [...old];
@@ -160,11 +161,11 @@ export function useSemesters() {
     },
     onError: (_err, _vars, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(QUERY_KEY, context.previous);
+        queryClient.setQueryData(queryKey, context.previous);
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey });
     },
   });
 
@@ -179,20 +180,41 @@ export function useSemesters() {
       }
     },
     onMutate: async (id) => {
-      await queryClient.cancelQueries({ queryKey: QUERY_KEY });
-      const previous = queryClient.getQueryData<Semester[]>(QUERY_KEY);
-      queryClient.setQueryData<Semester[]>(QUERY_KEY, (old = []) =>
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<Semester[]>(queryKey);
+      const deletedSemester = previous?.find((s) => s.id === id);
+      queryClient.setQueryData<Semester[]>(queryKey, (old = []) =>
         old.filter((s) => s.id !== id)
       );
-      return { previous };
+      return { previous, deletedSemester };
     },
     onError: (_err, _vars, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(QUERY_KEY, context.previous);
+        queryClient.setQueryData(queryKey, context.previous);
       }
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    onSettled: async (_data, _error, _id, context) => {
+      await queryClient.invalidateQueries({ queryKey });
+      // Auto-activate the first remaining semester if the deleted one was active
+      if (context?.deletedSemester?.is_active) {
+        const remaining = queryClient.getQueryData<Semester[]>(queryKey);
+        if (remaining && remaining.length > 0 && !remaining.some((s) => s.is_active)) {
+          const first = remaining[0];
+          if (user) {
+            const supabase = createClient();
+            await supabase
+              .from("semesters")
+              .update({ is_active: true })
+              .eq("id", first.id);
+          } else {
+            const local = loadLocal().map((s) =>
+              s.id === first.id ? { ...s, is_active: true } : s
+            );
+            saveLocal(local);
+          }
+          await queryClient.invalidateQueries({ queryKey });
+        }
+      }
     },
   });
 
@@ -217,6 +239,6 @@ export function useSemesters() {
     createSemester,
     updateSemester,
     deleteSemester,
-    refetch: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
+    refetch: () => queryClient.invalidateQueries({ queryKey }),
   };
 }
