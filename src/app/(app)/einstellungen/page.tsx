@@ -238,19 +238,24 @@ export default function EinstellungenPage() {
                 </div>
 
                 {deletingId === semester.id ? (
-                  <div className="flex gap-1.5 shrink-0">
-                    <button
-                      onClick={() => { deleteSemester(semester.id); setDeletingId(null); }}
-                      className="rounded-lg bg-danger px-2.5 py-1 text-[11px] font-semibold text-white"
-                    >
-                      Ja
-                    </button>
-                    <button
-                      onClick={() => setDeletingId(null)}
-                      className="rounded-lg bg-muted px-2.5 py-1 text-[11px] font-medium"
-                    >
-                      Nein
-                    </button>
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <p className="text-[11px] text-danger font-medium leading-tight">
+                      Stundenplan-Einträge werden ebenfalls gelöscht
+                    </p>
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={() => { deleteSemester(semester.id); setDeletingId(null); }}
+                        className="rounded-lg bg-danger px-2.5 py-1 text-[11px] font-semibold text-white"
+                      >
+                        Trotzdem löschen
+                      </button>
+                      <button
+                        onClick={() => setDeletingId(null)}
+                        className="rounded-lg bg-muted px-2.5 py-1 text-[11px] font-medium"
+                      >
+                        Abbrechen
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <button
