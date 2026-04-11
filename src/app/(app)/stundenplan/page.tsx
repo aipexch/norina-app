@@ -68,14 +68,13 @@ export default function StundenplanPage() {
     );
   }
 
-  function findEntry(day: DayOfWeek, slot: TimeSlot): TimetableEntry | undefined {
-    return entries.find(
-      (e) =>
-        e.day_of_week === day &&
-        e.start_time.slice(0, 5) === slot.start &&
-        e.end_time.slice(0, 5) === slot.end
-    );
-  }
+  const entryMap = useMemo(() => {
+    const map = new Map<string, TimetableEntry>();
+    for (const e of entries) {
+      map.set(`${e.day_of_week}-${e.start_time.slice(0, 5)}-${e.end_time.slice(0, 5)}`, e);
+    }
+    return map;
+  }, [entries]);
 
   async function saveEntry(day: DayOfWeek, slot: TimeSlot, subject: string) {
     await addEntry({
@@ -135,7 +134,7 @@ export default function StundenplanPage() {
                   </td>
 
                   {DAYS.map((day) => {
-                    const entry = findEntry(day, slot);
+                    const entry = entryMap.get(`${day}-${slot.start}-${slot.end}`);
                     const cellKey = `${day}-${slotIndex}`;
                     const isEditing = editingCell === cellKey;
 

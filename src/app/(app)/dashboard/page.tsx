@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useSemesters } from "@/hooks/useSemester";
 import { useTimer } from "@/hooks/useTimer";
 import { useTimetable } from "@/hooks/useTimetable";
@@ -34,17 +34,23 @@ export default function DashboardPage() {
   const totalMinutesAtSchool = getTotalMinutesAtSchool(todayRecords);
   const overtimeMinutes = totalMinutesAtSchool - scheduledMinutes;
 
-  const now = new Date();
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-  monday.setHours(0, 0, 0, 0);
-  const weekRecords = records.filter((r) => new Date(r.date) >= monday);
-  const weekTotalMinutes = getTotalMinutesAtSchool(weekRecords);
-  const trackedDatesThisWeek = new Set(weekRecords.map((r) => r.date));
-  const weekScheduledMinutes = Array.from(trackedDatesThisWeek).reduce((sum, dateStr) => {
-    return sum + getScheduledMinutesForDate(new Date(dateStr), entries);
-  }, 0);
-  const weekOvertime = weekTotalMinutes - weekScheduledMinutes;
+  const { weekTotalMinutes, weekScheduledMinutes, weekOvertime } = useMemo(() => {
+    const now = new Date();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    monday.setHours(0, 0, 0, 0);
+    const weekRecords = records.filter((r) => new Date(r.date) >= monday);
+    const weekTotal = getTotalMinutesAtSchool(weekRecords);
+    const trackedDatesThisWeek = new Set(weekRecords.map((r) => r.date));
+    const weekScheduled = Array.from(trackedDatesThisWeek).reduce((sum, dateStr) => {
+      return sum + getScheduledMinutesForDate(new Date(dateStr), entries);
+    }, 0);
+    return {
+      weekTotalMinutes: weekTotal,
+      weekScheduledMinutes: weekScheduled,
+      weekOvertime: weekTotal - weekScheduled,
+    };
+  }, [records, entries]);
 
   async function handleTimerToggle() {
     setTimerError(null);

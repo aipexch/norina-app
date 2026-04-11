@@ -68,6 +68,21 @@ export function useTimer(semesterId: string | null) {
       intervalRef.current = setInterval(() => {
         setElapsedSeconds(calcElapsed(activeRecord.clock_in));
       }, 1000);
+
+      const handleVisibility = () => {
+        if (!document.hidden) {
+          setElapsedSeconds(calcElapsed(activeRecord.clock_in));
+        }
+      };
+      document.addEventListener("visibilitychange", handleVisibility);
+
+      return () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        document.removeEventListener("visibilitychange", handleVisibility);
+      };
     }
     return () => {
       if (intervalRef.current) {
@@ -161,7 +176,8 @@ export function useTimer(semesterId: string | null) {
         const { error } = await supabase
           .from("time_records")
           .update({ clock_out: now, updated_at: now })
-          .eq("id", id);
+          .eq("id", id)
+          .eq("user_id", user.id);
         if (error) throw new Error(`Timer stop failed: ${error.message}`);
       } else {
         saveLocal(
