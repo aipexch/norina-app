@@ -79,9 +79,27 @@ export function useTimer(semesterId: string | null) {
 
   const startMutation = useMutation({
     mutationFn: async () => {
+      // Guard: if timer is already running, return the active record
+      if (state === "running" && activeRecord) {
+        return activeRecord;
+      }
+
       const now = new Date().toISOString();
       if (user) {
         const supabase = createClient();
+
+        // Check for any existing open timer before inserting
+        const { data: existing } = await supabase
+          .from("time_records")
+          .select("*")
+          .eq("user_id", user.id)
+          .is("clock_out", null)
+          .limit(1)
+          .maybeSingle();
+        if (existing) {
+          return existing as TimeRecord;
+        }
+
         const { data, error } = await supabase
           .from("time_records")
           .insert({
@@ -99,6 +117,13 @@ export function useTimer(semesterId: string | null) {
         if (error) throw new Error(`Timer start failed: ${error.message}`);
         return data as TimeRecord;
       } else {
+        // Local: check for existing open timer
+        const localRecords = loadLocal();
+        const existingLocal = localRecords.find((r) => !r.clock_out);
+        if (existingLocal) {
+          return existingLocal;
+        }
+
         const newRecord: TimeRecord = {
           id: crypto.randomUUID(),
           user_id: "local",
@@ -112,7 +137,7 @@ export function useTimer(semesterId: string | null) {
           created_at: now,
           updated_at: now,
         };
-        saveLocal([...loadLocal(), newRecord]);
+        saveLocal([...localRecords, newRecord]);
         return newRecord;
       }
     },
