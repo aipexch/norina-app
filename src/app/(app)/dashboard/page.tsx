@@ -12,15 +12,17 @@ import {
   formatDuration,
 } from "@/lib/calculations";
 import { formatElapsedTime, getGreeting, todayISO, formatWeekday, formatDateShort } from "@/lib/date-utils";
-import { Play, Square, BookOpen, TrendingUp, AlertCircle } from "lucide-react";
+import { Play, Square, BookOpen, TrendingUp, AlertCircle, Clock } from "lucide-react";
 import { BreakSheet } from "@/components/BreakSheet";
+import WheelTimePicker from "@/components/WheelTimePicker";
 import Link from "next/link";
 
 export default function DashboardPage() {
   const [breakRecordId, setBreakRecordId] = useState<string | null>(null);
   const [timerError, setTimerError] = useState<string | null>(null);
+  const [showAdjustPicker, setShowAdjustPicker] = useState(false);
   const { activeSemester, loading: semesterLoading } = useSemesters();
-  const { state, elapsedSeconds, startTimer, stopTimer, loading: timerLoading } = useTimer(
+  const { state, elapsedSeconds, startTimer, stopTimer, adjustStartTime, loading: timerLoading } = useTimer(
     activeSemester?.id ?? null
   );
   const { entries } = useTimetable(activeSemester?.id ?? null);
@@ -145,12 +147,41 @@ export default function DashboardPage() {
         <p className="mt-3 text-[13px] font-medium text-muted-foreground">
           {state === "idle" ? "Starten" : "Stoppen"}
         </p>
+        {state === "running" && (
+          <button
+            onClick={() => setShowAdjustPicker(true)}
+            className="mt-3 flex items-center gap-1 text-[12px] text-muted-foreground/60 transition-colors active:text-primary"
+          >
+            <Clock className="h-3 w-3" />
+            Früher angefangen?
+          </button>
+        )}
         {timerError && (
           <p className="mt-2 rounded-xl bg-danger/10 px-3 py-2 text-[12px] text-danger">
             {timerError}
           </p>
         )}
       </div>
+
+      {showAdjustPicker && (
+        <WheelTimePicker
+          value={(() => {
+            const now = new Date();
+            const h = now.getHours().toString().padStart(2, "0");
+            const m = (Math.floor(now.getMinutes() / 5) * 5).toString().padStart(2, "0");
+            return `${h}:${m}`;
+          })()}
+          onConfirm={async (val) => {
+            setShowAdjustPicker(false);
+            try {
+              await adjustStartTime(val);
+            } catch (err) {
+              setTimerError(err instanceof Error ? err.message : "Fehler");
+            }
+          }}
+          onCancel={() => setShowAdjustPicker(false)}
+        />
+      )}
 
       {/* Today's Summary */}
       <div className="space-y-3">

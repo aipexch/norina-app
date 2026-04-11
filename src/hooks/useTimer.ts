@@ -205,12 +205,41 @@ export function useTimer(semesterId: string | null) {
     return stopMutation.mutateAsync();
   }
 
+  async function adjustStartTime(timeStr: string) {
+    if (!activeRecord) return;
+    const dateStr = activeRecord.clock_in.split("T")[0];
+    const newClockIn = new Date(dateStr + "T" + timeStr + ":00").toISOString();
+    const now = new Date().toISOString();
+
+    if (user) {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("time_records")
+        .update({ clock_in: newClockIn, updated_at: now })
+        .eq("id", activeRecord.id)
+        .eq("user_id", user.id);
+      if (error) throw new Error(`Startzeit anpassen fehlgeschlagen: ${error.message}`);
+    } else {
+      saveLocal(
+        loadLocal().map((r) =>
+          r.id === activeRecord.id ? { ...r, clock_in: newClockIn, updated_at: now } : r
+        )
+      );
+    }
+
+    const updated = { ...activeRecord, clock_in: newClockIn, updated_at: now };
+    setActiveRecord(updated);
+    setElapsedSeconds(calcElapsed(newClockIn));
+    queryClient.invalidateQueries({ queryKey: ["time-records"] });
+  }
+
   return {
     state,
     activeRecord,
     elapsedSeconds,
     startTimer,
     stopTimer,
+    adjustStartTime,
     loading,
     refetch: checkRunningTimer,
   };
