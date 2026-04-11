@@ -70,6 +70,9 @@ export default function EinstellungenPage() {
         supabase.from("timetable_entries").select("*"),
         supabase.from("time_records").select("*"),
       ]);
+      if (semRes.error) throw new Error(`Semester: ${semRes.error.message}`);
+      if (ttRes.error) throw new Error(`Stundenplan: ${ttRes.error.message}`);
+      if (trRes.error) throw new Error(`Zeiterfassung: ${trRes.error.message}`);
       const data = {
         norina_semesters: semRes.data ?? [],
         norina_timetable: ttRes.data ?? [],

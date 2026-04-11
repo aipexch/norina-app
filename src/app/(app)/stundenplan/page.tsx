@@ -3,6 +3,7 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useSemesters } from "@/hooks/useSemester";
 import { useTimetable } from "@/hooks/useTimetable";
+import { useToast } from "@/components/Toast";
 import TopBar from "@/components/layout/TopBar";
 import { Plus, Coffee, Check } from "lucide-react";
 import { DAY_SHORT, type DayOfWeek, type TimetableEntry, type TimeSlot } from "@/types";
@@ -42,6 +43,7 @@ function getSubjectColor(subject: string, allSubjects: string[]): string {
 export default function StundenplanPage() {
   const { activeSemester } = useSemesters();
   const { entries, addEntry, deleteEntry } = useTimetable(activeSemester?.id ?? null);
+  const { showToast } = useToast();
   const [editingCell, setEditingCell] = useState<string | null>(null);
   const [editOrigin, setEditOrigin] = useState<{ x: number; y: number; bottom: number } | null>(null);
 
@@ -185,13 +187,21 @@ export default function StundenplanPage() {
             origin={editOrigin}
             dayLabel={DAY_SHORT[day]}
             timeLabel={slot.start}
-            onSave={(subject) => {
-              saveEntry(day, slot, subject);
+            onSave={async (subject) => {
+              try {
+                await saveEntry(day, slot, subject);
+              } catch {
+                showToast("Fehler beim Speichern des Fachs", "error");
+              }
               setEditingCell(null);
               setEditOrigin(null);
             }}
-            onSavePause={() => {
-              savePause(day, slot);
+            onSavePause={async () => {
+              try {
+                await savePause(day, slot);
+              } catch {
+                showToast("Fehler beim Speichern der Pause", "error");
+              }
               setEditingCell(null);
               setEditOrigin(null);
             }}

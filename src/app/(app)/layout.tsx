@@ -1,4 +1,5 @@
 import BottomNav from "@/components/layout/BottomNav";
+import { ToastProvider } from "@/components/Toast";
 
 export default function AppLayout({
   children,
@@ -6,9 +7,11 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="safe-top mx-auto min-h-dvh max-w-lg bg-background pt-6 pb-32">
-      {children}
-      <BottomNav />
-    </div>
+    <ToastProvider>
+      <div className="safe-top mx-auto min-h-dvh max-w-lg bg-background pt-6 pb-32">
+        {children}
+        <BottomNav />
+      </div>
+    </ToastProvider>
   );
 }
