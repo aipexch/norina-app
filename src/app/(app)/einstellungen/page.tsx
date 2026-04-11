@@ -408,7 +408,7 @@ export default function EinstellungenPage() {
 
         {/* Version */}
         <p className="text-center text-[12px] text-muted-foreground/60">
-          Timely v1.11
+          Timely v1.12
         </p>
 
       </div>
