@@ -11,6 +11,46 @@ import WheelTimePicker from "@/components/WheelTimePicker";
 import WheelDatePicker from "@/components/WheelDatePicker";
 import WheelNumberPicker from "@/components/WheelNumberPicker";
 import type { TimeSlot } from "@/types";
+import { z } from "zod";
+
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+const timeRegex = /^\d{2}:\d{2}(:\d{2})?$/;
+
+const backupSchema = z.object({
+  norina_semesters: z.array(z.object({
+    id: z.string(),
+    name: z.string().max(200),
+    start_date: z.string().regex(dateRegex, "Invalid date format"),
+    end_date: z.string().regex(dateRegex, "Invalid date format"),
+    pensum_percent: z.number().int().min(1).max(100).optional().default(100),
+    lessons_per_week: z.number(),
+    minutes_per_lesson: z.number().optional().default(45),
+    is_active: z.boolean().optional(),
+    time_slots: z.array(z.object({
+      start: z.string(),
+      end: z.string(),
+      label: z.string(),
+    })).optional().default([]),
+  })).optional().default([]),
+  norina_timetable: z.array(z.object({
+    semester_id: z.string(),
+    day_of_week: z.number().int().min(1).max(5),
+    start_time: z.string().regex(timeRegex, "Invalid time format"),
+    end_time: z.string().regex(timeRegex, "Invalid time format"),
+    subject: z.string().max(200),
+    is_pause: z.boolean().optional().default(false),
+    notes: z.string().nullable().optional().default(null),
+  })).optional().default([]),
+  norina_records: z.array(z.object({
+    semester_id: z.string().nullable().optional().default(null),
+    date: z.string().regex(dateRegex, "Invalid date format"),
+    clock_in: z.string().regex(timeRegex, "Invalid time format"),
+    clock_out: z.string().regex(timeRegex, "Invalid time format").nullable().optional().default(null),
+    break_minutes: z.number().optional().default(0),
+    is_manual: z.boolean().optional().default(false),
+    notes: z.string().nullable().optional().default(null),
+  })).optional().default([]),
+});
 
 const STORAGE_KEYS = ["norina_semesters", "norina_timetable", "norina_records"] as const;
 
@@ -67,7 +107,14 @@ export default function EinstellungenPage() {
     reader.onload = async (ev) => {
       try {
         setImporting(true);
-        const data = JSON.parse(ev.target?.result as string);
+        const raw = JSON.parse(ev.target?.result as string);
+        const parsed = backupSchema.safeParse(raw);
+        if (!parsed.success) {
+          setImporting(false);
+          alert(`Ungültiges Backup-Format:\n${parsed.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).slice(0, 5).join("\n")}`);
+          return;
+        }
+        const data = parsed.data;
 
         if (user) {
           const supabase = createClient();
@@ -88,7 +135,7 @@ export default function EinstellungenPage() {
                   pensum_percent: sem.pensum_percent ?? 100,
                   lessons_per_week: sem.lessons_per_week,
                   minutes_per_lesson: sem.minutes_per_lesson ?? 45,
-                  is_active: sem.is_active ?? false,
+                  is_active: false,
                   time_slots: sem.time_slots ?? [],
                   user_id: user.id,
                 })
@@ -103,51 +150,54 @@ export default function EinstellungenPage() {
             }
           }
 
-          // 2. Import timetable entries
-          if (data.norina_timetable?.length) {
-            for (const entry of data.norina_timetable) {
-              const newSemId = idMap.get(entry.semester_id);
-              if (!newSemId) continue;
-              const { error } = await supabase
+          // 2. Import timetable entries (batched)
+          if (data.norina_timetable.length) {
+            const ttRows = data.norina_timetable
+              .filter((entry) => idMap.has(entry.semester_id))
+              .map((entry) => ({
+                semester_id: idMap.get(entry.semester_id)!,
+                day_of_week: entry.day_of_week,
+                start_time: entry.start_time,
+                end_time: entry.end_time,
+                subject: entry.subject,
+                is_pause: entry.is_pause,
+                notes: entry.notes,
+                user_id: user.id,
+              }));
+            if (ttRows.length) {
+              const { error, data: inserted } = await supabase
                 .from("timetable_entries")
-                .insert({
-                  semester_id: newSemId,
-                  day_of_week: entry.day_of_week,
-                  start_time: entry.start_time,
-                  end_time: entry.end_time,
-                  subject: entry.subject,
-                  is_pause: entry.is_pause ?? false,
-                  notes: entry.notes ?? null,
-                  user_id: user.id,
-                });
+                .insert(ttRows)
+                .select("id");
               if (error) {
-                errors.push(`Stundenplan ${entry.subject}: ${error.message}`);
+                errors.push(`Stundenplan: ${error.message}`);
               } else {
-                ttOk++;
+                ttOk = inserted?.length ?? 0;
               }
             }
           }
 
-          // 3. Import time records
-          if (data.norina_records?.length) {
-            for (const record of data.norina_records) {
-              const newSemId = record.semester_id ? idMap.get(record.semester_id) : null;
-              const { error } = await supabase
+          // 3. Import time records (batched)
+          if (data.norina_records.length) {
+            const recRows = data.norina_records.map((record) => ({
+              semester_id: record.semester_id ? (idMap.get(record.semester_id) ?? null) : null,
+              date: record.date,
+              clock_in: record.clock_in,
+              clock_out: record.clock_out,
+              break_minutes: record.break_minutes,
+              is_manual: record.is_manual,
+              notes: record.notes,
+              user_id: user.id,
+            }));
+            if (recRows.length) {
+              const { error, data: inserted } = await supabase
                 .from("time_records")
-                .insert({
-                  semester_id: newSemId ?? null,
-                  date: record.date,
-                  clock_in: record.clock_in,
-                  clock_out: record.clock_out ?? null,
-                  break_minutes: record.break_minutes ?? 0,
-                  is_manual: record.is_manual ?? false,
-                  notes: record.notes ?? null,
-                  user_id: user.id,
-                });
+                .insert(recRows)
+                .select("id");
               if (error) {
-                errors.push(`Record ${record.date}: ${error.message}`);
+                errors.push(`Zeiterfassung: ${error.message}`);
               } else {
-                recOk++;
+                recOk = inserted?.length ?? 0;
               }
             }
           }

@@ -357,6 +357,7 @@ function EditableCell({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder="Fach eingeben…"
+          maxLength={100}
           className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-[14px] outline-none focus:border-primary"
           onKeyDown={(e) => {
             if (e.key === "Enter" && value.trim()) animateOut(() => onSave(value));
