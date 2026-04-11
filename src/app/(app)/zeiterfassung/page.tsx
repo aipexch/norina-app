@@ -221,7 +221,7 @@ function RecordDetailPopover({
   async function handleSave() {
     setSaving(true);
     const dateStr = record.clock_in.split("T")[0];
-    await onSave(`${dateStr}T${inTime}:00`, `${dateStr}T${outTime}:00`);
+    await onSave(new Date(dateStr + "T" + inTime + ":00").toISOString(), new Date(dateStr + "T" + outTime + ":00").toISOString());
     setSaving(false);
   }
 

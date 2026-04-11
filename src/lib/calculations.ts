@@ -57,7 +57,7 @@ export function buildDailySummary(
   timetableEntries: TimetableEntry[],
   now?: Date
 ): DailySummary {
-  const dateObj = new Date(date);
+  const dateObj = new Date(date + "T00:00:00");
   const scheduledMinutes = getScheduledMinutesForDate(dateObj, timetableEntries);
   const totalMinutesAtSchool = getTotalMinutesAtSchool(records, now);
   const isRunning = records.some((r) => r.clock_out === null);
