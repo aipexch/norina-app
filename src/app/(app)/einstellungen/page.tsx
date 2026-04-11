@@ -5,7 +5,7 @@ import { useSemesters } from "@/hooks/useSemester";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
 import TopBar from "@/components/layout/TopBar";
-import { Plus, Check, Trash2, Clock, Download, Upload, GripVertical, X, Calendar, Percent, BookOpen, Timer } from "lucide-react";
+import { Plus, Check, Trash2, Clock, Download, Upload, GripVertical, X, Calendar, Percent, BookOpen, Timer, LogOut } from "lucide-react";
 import { formatDateShort } from "@/lib/date-utils";
 import WheelTimePicker from "@/components/WheelTimePicker";
 import WheelDatePicker from "@/components/WheelDatePicker";
@@ -389,9 +389,26 @@ export default function EinstellungenPage() {
           </div>
         </section>
 
+        {/* Abmelden */}
+        {user && (
+          <section>
+            <button
+              onClick={async () => {
+                const supabase = createClient();
+                await supabase.auth.signOut();
+                window.location.href = "/anmelden";
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-danger/20 bg-danger/5 py-3.5 text-[15px] font-medium text-danger transition-colors active:bg-danger/10"
+            >
+              <LogOut className="h-4 w-4" />
+              Abmelden
+            </button>
+          </section>
+        )}
+
         {/* Version */}
         <p className="text-center text-[12px] text-muted-foreground/60">
-          Timely v1.1
+          Timely v1.2
         </p>
 
       </div>

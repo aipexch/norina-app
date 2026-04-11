@@ -2,12 +2,6 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function updateSession(request: NextRequest) {
-  // Skip auth check on localhost for development
-  const hostname = request.nextUrl.hostname;
-  if (process.env.NODE_ENV === "development" && (hostname === "localhost" || hostname === "127.0.0.1")) {
-    return NextResponse.next({ request });
-  }
-
   // If env vars are missing, return 500 instead of allowing unauthenticated access
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
