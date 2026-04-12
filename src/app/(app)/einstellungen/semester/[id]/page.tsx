@@ -540,13 +540,20 @@ function TimeSlotsEditor({ timeSlots, onSave }: { timeSlots: TimeSlot[]; onSave:
     setHoverTarget(null);
   }
 
+  // Block page scroll while dragging
+  useEffect(() => {
+    if (dragIndex === null) return;
+    function preventScroll(e: TouchEvent) { e.preventDefault(); }
+    document.addEventListener("touchmove", preventScroll, { passive: false });
+    return () => document.removeEventListener("touchmove", preventScroll);
+  }, [dragIndex]);
+
   // Touch handlers
   function handleTouchStart(index: number, e: React.TouchEvent) {
     e.preventDefault();
     startDrag(index, e.touches[0].clientY);
   }
   function handleTouchMove(e: React.TouchEvent) {
-    e.preventDefault();
     moveDrag(e.touches[0].clientY);
   }
   function handleTouchEnd() { endDrag(); }
