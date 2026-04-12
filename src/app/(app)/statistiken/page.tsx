@@ -173,7 +173,7 @@ export default function StatistikenPage() {
           <div className="rounded-2xl bg-card p-4 shadow-sm">
             <ResponsiveContainer width="100%" height={220}>
               <BarChart
-                data={stats.dailyStats.map((d) => ({
+                data={(stats.dailyStats ?? []).map((d) => ({
                   name: d.label,
                   überstunden: Math.round(d.overtimeMinutes),
                   lektionen: Math.round(d.scheduledMinutes),

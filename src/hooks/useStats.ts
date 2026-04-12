@@ -52,6 +52,7 @@ export function useStats(records: TimeRecord[], timetableEntries: TimetableEntry
         avgArrivalTime: "",
         avgDepartureTime: "",
         dayOfWeekStats: [] as DayOfWeekStat[],
+        dailyStats: [] as DailyStat[],
         weekStats: [] as WeekStat[],
         monthStats: [] as MonthStat[],
         totalDaysTracked: 0,
