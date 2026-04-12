@@ -279,7 +279,7 @@ export default function SemesterDetailPage() {
           </p>
           <div className="overflow-x-auto">
             <div className="rounded-2xl bg-card p-3 shadow-sm">
-              <table className="w-full min-w-[340px] border-collapse">
+              <table className="w-full min-w-[340px] border-collapse table-fixed">
                 <thead>
                   <tr>
                     <th className="w-[50px] pb-2 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -426,7 +426,7 @@ function FilledCell({ entry, allSubjects, onDelete }: { entry: TimetableEntry; a
   }
   return (
     <button onClick={() => setConfirm(true)} className={`flex min-h-[44px] w-full items-center justify-center rounded-xl p-1 ${entry.is_pause ? "border border-dashed border-border/50 bg-muted/30" : getSubjectColor(entry.subject, allSubjects)}`}>
-      {entry.is_pause ? <Coffee className="h-3 w-3 text-muted-foreground" /> : <span className="text-[11px] font-semibold text-center leading-tight">{entry.subject}</span>}
+      {entry.is_pause ? <Coffee className="h-3 w-3 text-muted-foreground" /> : <span className="text-[11px] font-semibold text-center leading-tight line-clamp-2 overflow-hidden hyphens-auto" lang="de">{entry.subject}</span>}
     </button>
   );
 }

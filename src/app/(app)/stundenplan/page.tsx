@@ -116,7 +116,7 @@ export default function StundenplanPage() {
       <TopBar title="Stundenplan" />
       <div className="overflow-x-auto px-3">
         <div className="rounded-2xl bg-card p-3 shadow-sm">
-          <table className="w-full min-w-[340px] border-collapse">
+          <table className="w-full min-w-[340px] border-collapse table-fixed">
             <thead>
               <tr>
                 <th className="w-[50px] pb-2 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -268,7 +268,7 @@ function FilledCell({
       {entry.is_pause ? (
         <Coffee className="h-3 w-3 text-muted-foreground" />
       ) : (
-        <span className="text-[11px] font-semibold text-center leading-tight">
+        <span className="text-[11px] font-semibold text-center leading-tight line-clamp-2 overflow-hidden hyphens-auto" lang="de">
           {entry.subject}
         </span>
       )}
