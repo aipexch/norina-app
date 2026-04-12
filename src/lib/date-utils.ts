@@ -2,11 +2,17 @@ import { format, formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
 
 export function formatDate(date: Date | string): string {
-  return format(new Date(date), "dd. MMMM yyyy", { locale: de });
+  if (!date) return "–";
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return "–";
+  return format(d, "dd. MMMM yyyy", { locale: de });
 }
 
 export function formatDateShort(date: Date | string): string {
-  return format(new Date(date), "dd.MM.yyyy", { locale: de });
+  if (!date) return "–";
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return "–";
+  return format(d, "dd.MM.yyyy", { locale: de });
 }
 
 export function formatTime(date: Date | string): string {

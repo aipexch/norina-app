@@ -17,6 +17,14 @@ export interface DayOfWeekStat {
   totalDays: number;
 }
 
+export interface DailyStat {
+  date: string;
+  label: string; // "Mo 7.4."
+  overtimeMinutes: number;
+  totalMinutes: number;
+  scheduledMinutes: number;
+}
+
 export interface WeekStat {
   week: number;
   year: number;
@@ -61,19 +69,30 @@ export function useStats(records: TimeRecord[], timetableEntries: TimetableEntry
     let longestDay: { date: string; minutes: number } | null = null;
     const arrivalMinutes: number[] = [];
     const departureMinutes: number[] = [];
+    const dailyStats: DailyStat[] = [];
     const dayOfWeekOvertimes: Map<DayOfWeek, number[]> = new Map();
     const weekOvertimes: Map<string, { overtime: number; total: number; scheduled: number; week: number; year: number }> = new Map();
     const monthOvertimes: Map<string, { overtime: number; total: number; scheduled: number }> = new Map();
 
     for (const [date, dateRecords] of byDate) {
       const dateObj = new Date(date);
-      const dow = getISODay(dateObj) as DayOfWeek;
-      if (dow > 5) continue;
+      const dow = getISODay(dateObj);
+      const isWeekday = dow <= 5;
 
-      const scheduled = getScheduledMinutesForDate(dateObj, timetableEntries);
+      const scheduled = isWeekday ? getScheduledMinutesForDate(dateObj, timetableEntries as TimetableEntry[]) : 0;
       const totalAtSchool = getTotalMinutesAtSchool(dateRecords);
       const overtime = totalAtSchool - scheduled;
       totalOvertime += overtime;
+
+      // Daily stat
+      const dayLabel = format(dateObj, "EE d.M.", { locale: de });
+      dailyStats.push({
+        date,
+        label: dayLabel,
+        overtimeMinutes: overtime,
+        totalMinutes: totalAtSchool,
+        scheduledMinutes: scheduled,
+      });
 
       // Longest day
       if (!longestDay || totalAtSchool > longestDay.minutes) {
@@ -93,9 +112,12 @@ export function useStats(records: TimeRecord[], timetableEntries: TimetableEntry
         departureMinutes.push(out.getHours() * 60 + out.getMinutes());
       }
 
-      // Day of week
-      if (!dayOfWeekOvertimes.has(dow)) dayOfWeekOvertimes.set(dow, []);
-      dayOfWeekOvertimes.get(dow)!.push(overtime);
+      // Day of week (only weekdays for the chart)
+      if (isWeekday) {
+        const weekday = dow as DayOfWeek;
+        if (!dayOfWeekOvertimes.has(weekday)) dayOfWeekOvertimes.set(weekday, []);
+        dayOfWeekOvertimes.get(weekday)!.push(overtime);
+      }
 
       // Week
       const weekNum = getISOWeek(dateObj);
@@ -134,14 +156,21 @@ export function useStats(records: TimeRecord[], timetableEntries: TimetableEntry
 
     // Week stats (sorted by week)
     const weekStats: WeekStat[] = Array.from(weekOvertimes.entries())
-      .map(([key, val]) => ({
-        week: val.week,
-        year: val.year,
-        label: `KW${val.week}`,
-        overtimeMinutes: val.overtime,
-        totalMinutes: val.total,
-        scheduledMinutes: val.scheduled,
-      }))
+      .map(([key, val]) => {
+        // Build a date from ISO week to get the Monday
+        const monday = startOfWeek(new Date(val.year, 0, 4 + (val.week - 1) * 7), { weekStartsOn: 1 });
+        const sunday = endOfWeek(monday, { weekStartsOn: 1 });
+        const monDay = format(monday, "d.", { locale: de });
+        const sunDay = format(sunday, "d. MMM", { locale: de });
+        return {
+          week: val.week,
+          year: val.year,
+          label: `${monDay}–${sunDay}`,
+          overtimeMinutes: val.overtime,
+          totalMinutes: val.total,
+          scheduledMinutes: val.scheduled,
+        };
+      })
       .sort((a, b) => a.year - b.year || a.week - b.week);
 
     // Month stats (sorted)
@@ -166,6 +195,9 @@ export function useStats(records: TimeRecord[], timetableEntries: TimetableEntry
     const formatMinOfDay = (min: number) =>
       `${Math.floor(min / 60).toString().padStart(2, "0")}:${(min % 60).toString().padStart(2, "0")}`;
 
+    // Sort daily stats by date
+    dailyStats.sort((a, b) => a.date.localeCompare(b.date));
+
     return {
       totalOvertimeMinutes: totalOvertime,
       avgOvertimePerWeek: weeks > 0 ? totalOvertime / weeks : 0,
@@ -173,6 +205,7 @@ export function useStats(records: TimeRecord[], timetableEntries: TimetableEntry
       avgArrivalTime: avgArr > 0 ? formatMinOfDay(avgArr) : "–",
       avgDepartureTime: avgDep > 0 ? formatMinOfDay(avgDep) : "–",
       dayOfWeekStats,
+      dailyStats,
       weekStats,
       monthStats,
       totalDaysTracked,

@@ -98,6 +98,13 @@
 
 * {
   -webkit-tap-highlight-color: transparent;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  touch-action: manipulation;
+}
+
+*::-webkit-scrollbar {
+  display: none;
 }
 
 body {
@@ -108,56 +115,31 @@ body {
   background-color: var(--background);
 }
 
-/* iOS-style inputs */
 input, select, textarea {
   font-family: "Inter", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
-  font-size: 16px; /* Prevent iOS zoom */
+  font-size: 16px;
 }
 
-/* Smooth transitions everywhere */
-button, a, input, [class*="transition"] {
-  transition: all 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+button, a {
+  transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
 }
 
-/* Active press state like iOS */
-button:active:not(:disabled) {
+button:active:not(:disabled):not(.cursor-grab) {
   transform: scale(0.97);
   opacity: 0.85;
 }
 
-/* PWA safe areas */
-@supports (padding: env(safe-area-inset-bottom)) {
-  .safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-  .safe-top {
-    padding-top: env(safe-area-inset-top);
-  }
+.cursor-grab {
+  transition: none;
 }
 
-/* Hide all scrollbars globally */
-*::-webkit-scrollbar {
-  display: none;
-}
-* {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-/* Prevent pull-to-refresh and overscroll bounce */
 html, body {
   overscroll-behavior: none;
 }
 
-/* Prevent text selection on interactive elements */
 button, a, nav {
   -webkit-user-select: none;
   user-select: none;
-}
-
-/* Prevent iOS double-tap zoom */
-* {
-  touch-action: manipulation;
 }
 
 @layer base {

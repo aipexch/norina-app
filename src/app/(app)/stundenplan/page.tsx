@@ -41,8 +41,8 @@ function getSubjectColor(subject: string, allSubjects: string[]): string {
 }
 
 export default function StundenplanPage() {
-  const { activeSemester } = useSemesters();
-  const { entries, addEntry, deleteEntry } = useTimetable(activeSemester?.id ?? null);
+  const { activeSemester, loading: semesterLoading } = useSemesters();
+  const { entries, addEntry, deleteEntry, loading: timetableLoading } = useTimetable(activeSemester?.id ?? null);
   const { showToast } = useToast();
   const [editingCell, setEditingCell] = useState<string | null>(null);
   const [editOrigin, setEditOrigin] = useState<{ x: number; y: number; bottom: number } | null>(null);
@@ -54,6 +54,25 @@ export default function StundenplanPage() {
     const set = new Set(entries.filter((e) => !e.is_pause).map((e) => e.subject));
     return Array.from(set);
   }, [entries]);
+
+  const entryMap = useMemo(() => {
+    const map = new Map<string, TimetableEntry>();
+    for (const e of entries) {
+      map.set(`${e.day_of_week}-${e.start_time.slice(0, 5)}-${e.end_time.slice(0, 5)}`, e);
+    }
+    return map;
+  }, [entries]);
+
+  if (semesterLoading || timetableLoading) {
+    return (
+      <>
+        <TopBar title="Stundenplan" />
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      </>
+    );
+  }
 
   if (!activeSemester) {
     return (
@@ -67,14 +86,6 @@ export default function StundenplanPage() {
       </>
     );
   }
-
-  const entryMap = useMemo(() => {
-    const map = new Map<string, TimetableEntry>();
-    for (const e of entries) {
-      map.set(`${e.day_of_week}-${e.start_time.slice(0, 5)}-${e.end_time.slice(0, 5)}`, e);
-    }
-    return map;
-  }, [entries]);
 
   async function saveEntry(day: DayOfWeek, slot: TimeSlot, subject: string) {
     await addEntry({

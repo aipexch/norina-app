@@ -15,17 +15,17 @@ import {
   Sunset,
   Award,
 } from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  Legend,
-} from "recharts";
+import dynamic from "next/dynamic";
+
+const BarChart = dynamic(() => import("recharts").then(m => m.BarChart), { ssr: false });
+const Bar = dynamic(() => import("recharts").then(m => m.Bar), { ssr: false });
+const XAxis = dynamic(() => import("recharts").then(m => m.XAxis), { ssr: false });
+const YAxis = dynamic(() => import("recharts").then(m => m.YAxis), { ssr: false });
+const Tooltip = dynamic(() => import("recharts").then(m => m.Tooltip), { ssr: false });
+const ResponsiveContainer = dynamic(() => import("recharts").then(m => m.ResponsiveContainer), { ssr: false });
+const AreaChart = dynamic(() => import("recharts").then(m => m.AreaChart), { ssr: false });
+const Area = dynamic(() => import("recharts").then(m => m.Area), { ssr: false });
+const Legend = dynamic(() => import("recharts").then(m => m.Legend), { ssr: false });
 
 function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string }) {
   if (!active || !payload?.length) return null;
@@ -43,10 +43,21 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 }
 
 export default function StatistikenPage() {
-  const { activeSemester } = useSemesters();
-  const { records } = useTimeRecords(activeSemester?.id ?? null);
-  const { entries } = useTimetable(activeSemester?.id ?? null);
+  const { activeSemester, loading: semesterLoading } = useSemesters();
+  const { records, loading: recordsLoading } = useTimeRecords(activeSemester?.id ?? null);
+  const { entries, loading: timetableLoading } = useTimetable(activeSemester?.id ?? null);
   const stats = useStats(records, entries);
+
+  if (semesterLoading || recordsLoading || timetableLoading) {
+    return (
+      <>
+        <TopBar title="Statistiken" />
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      </>
+    );
+  }
 
   if (!activeSemester) {
     return (
@@ -154,19 +165,19 @@ export default function StatistikenPage() {
           </div>
         </section>
 
-        {/* Weekly Overtime + Total Chart */}
+        {/* Daily Overview Chart */}
         <section>
           <h2 className="mb-3 px-1 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Wochenübersicht
+            Tagesübersicht
           </h2>
           <div className="rounded-2xl bg-card p-4 shadow-sm">
             <ResponsiveContainer width="100%" height={220}>
               <BarChart
-                data={stats.weekStats.map((w) => ({
-                  name: w.label,
-                  überstunden: Math.round(w.overtimeMinutes),
-                  lektionen: Math.round(w.scheduledMinutes),
-                  total: Math.round(w.totalMinutes),
+                data={stats.dailyStats.map((d) => ({
+                  name: d.label,
+                  überstunden: Math.round(d.overtimeMinutes),
+                  lektionen: Math.round(d.scheduledMinutes),
+                  total: Math.round(d.totalMinutes),
                 }))}
                 barGap={2}
               >

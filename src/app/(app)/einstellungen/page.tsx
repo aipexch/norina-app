@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSemesters } from "@/hooks/useSemester";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
 import TopBar from "@/components/layout/TopBar";
-import { Plus, Check, Trash2, Clock, Download, Upload, GripVertical, X, Calendar, Percent, BookOpen, Timer, LogOut } from "lucide-react";
+import { Plus, Check, Download, Upload, X, Calendar, Percent, BookOpen, Timer, LogOut, ChevronRight } from "lucide-react";
+import Link from "next/link";
 import { formatDateShort } from "@/lib/date-utils";
-import WheelTimePicker from "@/components/WheelTimePicker";
 import WheelDatePicker from "@/components/WheelDatePicker";
 import WheelNumberPicker from "@/components/WheelNumberPicker";
 import type { TimeSlot } from "@/types";
@@ -58,7 +58,6 @@ export default function EinstellungenPage() {
   const { user } = useAuth();
   const { semesters, activeSemester, createSemester, updateSemester, deleteSemester, refetch } = useSemesters();
   const [showForm, setShowForm] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -261,9 +260,10 @@ export default function EinstellungenPage() {
 
           <div className="overflow-hidden rounded-2xl bg-card shadow-sm">
             {semesters.map((semester, i) => (
-              <div
+              <Link
                 key={semester.id}
-                className={`flex items-center gap-3 px-4 py-3.5 ${
+                href={`/einstellungen/semester/${semester.id}`}
+                className={`flex items-center gap-3 px-4 py-3.5 active:bg-muted/30 ${
                   i > 0 ? "border-t border-border/20" : ""
                 }`}
               >
@@ -273,10 +273,7 @@ export default function EinstellungenPage() {
                       <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
                     </div>
                   ) : (
-                    <button
-                      onClick={() => updateSemester(semester.id, { is_active: true })}
-                      className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-border"
-                    />
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-border" />
                   )}
                 </div>
 
@@ -290,35 +287,8 @@ export default function EinstellungenPage() {
                   </p>
                 </div>
 
-                {deletingId === semester.id ? (
-                  <div className="flex flex-col items-end gap-1.5 shrink-0">
-                    <p className="text-[11px] text-danger font-medium leading-tight">
-                      Stundenplan-Einträge werden ebenfalls gelöscht
-                    </p>
-                    <div className="flex gap-1.5">
-                      <button
-                        onClick={() => { deleteSemester(semester.id); setDeletingId(null); }}
-                        className="rounded-lg bg-danger px-2.5 py-1 text-[11px] font-semibold text-white"
-                      >
-                        Trotzdem löschen
-                      </button>
-                      <button
-                        onClick={() => setDeletingId(null)}
-                        className="rounded-lg bg-muted px-2.5 py-1 text-[11px] font-medium"
-                      >
-                        Abbrechen
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setDeletingId(semester.id)}
-                    className="shrink-0 rounded-full p-1.5 text-muted-foreground"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/40" />
+              </Link>
             ))}
 
             {semesters.length === 0 && !showForm && (
@@ -331,31 +301,6 @@ export default function EinstellungenPage() {
             )}
           </div>
         </section>
-
-        {/* Active Semester Info */}
-        {activeSemester && (
-          <section>
-            <p className="mb-3 px-1 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Aktives Semester
-            </p>
-            <div className="rounded-2xl bg-card px-4 py-3.5 mb-4 shadow-sm">
-              <p className="text-[15px]">
-                <span className="font-semibold">{activeSemester.name}</span>
-                {" — "}
-                <span className="text-muted-foreground">
-                  Neue Einträge werden diesem Semester zugeordnet.
-                </span>
-              </p>
-            </div>
-
-            <TimeSlotsEditor
-              timeSlots={activeSemester.time_slots || []}
-              onSave={async (slots) => {
-                await updateSemester(activeSemester.id, { time_slots: slots });
-              }}
-            />
-          </section>
-        )}
 
         {/* Daten Section */}
         <section>
@@ -408,7 +353,7 @@ export default function EinstellungenPage() {
 
         {/* Version */}
         <p className="text-center text-[12px] text-muted-foreground/60">
-          Timely v1.12
+          Timely v1.13
         </p>
 
       </div>
@@ -656,263 +601,3 @@ function SemesterForm({
   );
 }
 
-function TimeSlotsEditor({
-  timeSlots,
-  onSave,
-}: {
-  timeSlots: TimeSlot[];
-  onSave: (slots: TimeSlot[]) => Promise<void>;
-}) {
-  const [slots, setSlots] = useState<TimeSlot[]>(timeSlots);
-  const [saving, setSaving] = useState(false);
-  const [editingPicker, setEditingPicker] = useState<{
-    index: number;
-    field: "start" | "end";
-  } | null>(null);
-
-  // Drag state — all via refs so moves are instant (no re-render per pixel)
-  const dragState = useRef<{
-    active: boolean;
-    index: number;
-    startY: number;
-    currentTarget: number;
-    rowHeight: number;
-  } | null>(null);
-  const [dragging, setDragging] = useState(false);
-  const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const isDirty = JSON.stringify(slots) !== JSON.stringify(timeSlots);
-
-  function handleAdd() {
-    setSlots([...slots, { start: "12:00", end: "12:45", label: "12:00" }]);
-  }
-
-  function handleRemove(index: number) {
-    setSlots(slots.filter((_, i) => i !== index));
-  }
-
-  function handleChange(index: number, field: "start" | "end", value: string) {
-    const newSlots = [...slots];
-    newSlots[index] = { ...newSlots[index], [field]: value };
-    if (field === "start") {
-      newSlots[index].label = value;
-    }
-    setSlots(newSlots);
-  }
-
-  async function handleSave() {
-    setSaving(true);
-    const sorted = [...slots].sort((a, b) => a.start.localeCompare(b.start));
-    setSlots(sorted);
-    await onSave(sorted);
-    setSaving(false);
-  }
-
-  // Directly manipulate DOM for smooth 60fps dragging
-  const applyDragTransforms = useCallback((dragIdx: number, targetIdx: number, offsetY: number) => {
-    const rows = rowRefs.current;
-    const rh = dragState.current?.rowHeight ?? 0;
-    for (let i = 0; i < rows.length; i++) {
-      const el = rows[i];
-      if (!el) continue;
-      if (i === dragIdx) {
-        // Dragged element follows finger
-        el.style.transform = `translateY(${offsetY}px) scale(1.03)`;
-        el.style.zIndex = "50";
-        el.style.position = "relative";
-        el.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
-        el.style.transition = "box-shadow 150ms ease, scale 150ms ease";
-      } else {
-        // Other rows shift smoothly to make room
-        let shift = 0;
-        if (dragIdx < targetIdx) {
-          // Dragging down: rows between dragIdx+1..targetIdx shift up
-          if (i > dragIdx && i <= targetIdx) shift = -rh;
-        } else if (dragIdx > targetIdx) {
-          // Dragging up: rows between targetIdx..dragIdx-1 shift down
-          if (i >= targetIdx && i < dragIdx) shift = rh;
-        }
-        el.style.transform = shift ? `translateY(${shift}px)` : "";
-        el.style.zIndex = "";
-        el.style.position = "";
-        el.style.boxShadow = "";
-        el.style.transition = "transform 200ms cubic-bezier(0.2, 0, 0, 1)";
-      }
-    }
-  }, []);
-
-  const clearTransforms = useCallback(() => {
-    for (const el of rowRefs.current) {
-      if (!el) continue;
-      el.style.transform = "";
-      el.style.zIndex = "";
-      el.style.position = "";
-      el.style.boxShadow = "";
-      el.style.transition = "";
-    }
-  }, []);
-
-  const startDrag = useCallback((index: number, clientY: number) => {
-    const row = rowRefs.current[index];
-    if (!row) return;
-    const rh = row.getBoundingClientRect().height + 8;
-    dragState.current = {
-      active: true,
-      index,
-      startY: clientY,
-      currentTarget: index,
-      rowHeight: rh,
-    };
-    setDragging(true);
-    if (navigator.vibrate) navigator.vibrate(20);
-    applyDragTransforms(index, index, 0);
-  }, [applyDragTransforms]);
-
-  const moveDrag = useCallback((clientY: number) => {
-    const ds = dragState.current;
-    if (!ds?.active) return;
-    const dy = clientY - ds.startY;
-    const steps = Math.round(dy / ds.rowHeight);
-    const len = rowRefs.current.filter(Boolean).length;
-    const target = Math.max(0, Math.min(len - 1, ds.index + steps));
-    ds.currentTarget = target;
-    applyDragTransforms(ds.index, target, dy);
-  }, [applyDragTransforms]);
-
-  const endDrag = useCallback(() => {
-    const ds = dragState.current;
-    if (!ds?.active) return;
-    const { index, currentTarget } = ds;
-    dragState.current = null;
-
-    // Animate to final position then reorder
-    clearTransforms();
-    setDragging(false);
-
-    if (index !== currentTarget) {
-      // Small delay to let clear transition finish
-      requestAnimationFrame(() => {
-        setSlots(prev => {
-          const newSlots = [...prev];
-          const [moved] = newSlots.splice(index, 1);
-          newSlots.splice(currentTarget, 0, moved);
-          return newSlots;
-        });
-      });
-    }
-  }, [clearTransforms]);
-
-  // Instant activation on grip — touch
-  function handleTouchStart(index: number, e: React.TouchEvent) {
-    e.preventDefault();
-    startDrag(index, e.touches[0].clientY);
-  }
-
-  function handleTouchMove(e: React.TouchEvent) {
-    if (!dragState.current?.active) return;
-    e.preventDefault();
-    moveDrag(e.touches[0].clientY);
-  }
-
-  function handleTouchEnd() {
-    endDrag();
-  }
-
-  // Instant activation on grip — mouse
-  function handleMouseDown(index: number, e: React.MouseEvent) {
-    e.preventDefault();
-    startDrag(index, e.clientY);
-
-    function onMouseMove(ev: MouseEvent) {
-      moveDrag(ev.clientY);
-    }
-    function onMouseUp() {
-      endDrag();
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    }
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-  }
-
-  return (
-    <div className="overflow-hidden rounded-2xl bg-card p-4 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-[15px] font-bold flex items-center gap-2">
-          <Clock className="w-4 h-4 text-primary" />
-          Raster für Stundenplan
-        </h3>
-        {isDirty && (
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="text-[13px] font-semibold text-white bg-primary px-4 py-1.5 rounded-full disabled:opacity-50"
-          >
-            {saving ? "..." : "Speichern"}
-          </button>
-        )}
-      </div>
-
-      <div ref={containerRef} className="space-y-2">
-        {slots.map((slot, i) => (
-          <div
-            key={`${slot.start}-${slot.end}-${i}`}
-            ref={(el) => { rowRefs.current[i] = el; }}
-            className="flex items-center gap-1.5 rounded-xl"
-          >
-            {/* Drag handle — instant activation */}
-            <div
-              className={`shrink-0 touch-none cursor-grab p-1.5 text-muted-foreground/40 active:text-primary`}
-              onTouchStart={(e) => handleTouchStart(i, e)}
-              onTouchMove={(e) => handleTouchMove(e)}
-              onTouchEnd={handleTouchEnd}
-              onMouseDown={(e) => handleMouseDown(i, e)}
-            >
-              <GripVertical className="h-4 w-4" />
-            </div>
-
-            <button
-              onClick={() => !dragging && setEditingPicker({ index: i, field: "start" })}
-              className="flex-1 rounded-xl border border-border px-3 py-2.5 text-left text-[15px] font-medium tabular-nums bg-background active:bg-muted/50 transition-colors"
-            >
-              {slot.start}
-            </button>
-            <span className="text-muted-foreground text-sm">–</span>
-            <button
-              onClick={() => !dragging && setEditingPicker({ index: i, field: "end" })}
-              className="flex-1 rounded-xl border border-border px-3 py-2.5 text-left text-[15px] font-medium tabular-nums bg-background active:bg-muted/50 transition-colors"
-            >
-              {slot.end}
-            </button>
-            <button
-              onClick={() => handleRemove(i)}
-              className="shrink-0 p-2 text-muted-foreground hover:text-danger rounded-xl transition-colors"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
-        ))}
-
-        <button
-          onClick={handleAdd}
-          className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border py-2.5 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          Neuer Zeitslot
-        </button>
-      </div>
-
-      {editingPicker && (
-        <WheelTimePicker
-          value={slots[editingPicker.index][editingPicker.field]}
-          onConfirm={(val) => {
-            handleChange(editingPicker.index, editingPicker.field, val);
-            setEditingPicker(null);
-          }}
-          onCancel={() => setEditingPicker(null)}
-        />
-      )}
-    </div>
-  );
-}

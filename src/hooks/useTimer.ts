@@ -36,18 +36,27 @@ export function useTimer(semesterId: string | null) {
   }, []);
 
   const checkRunningTimer = useCallback(async () => {
+    if (user === undefined) {
+      // Auth still loading — keep loading true but don't block forever
+      return;
+    }
+
     let running: TimeRecord | null = null;
 
     if (user) {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("time_records")
-        .select("*")
-        .is("clock_out", null)
-        .limit(1)
-        .maybeSingle();
-      if (!error) running = (data as TimeRecord) ?? null;
-    } else if (user === null) {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("time_records")
+          .select("id, clock_in, semester_id, user_id, date, clock_out, break_minutes, is_manual, notes, created_at, updated_at")
+          .is("clock_out", null)
+          .limit(1)
+          .maybeSingle();
+        if (!error) running = (data as TimeRecord) ?? null;
+      } catch {
+        // Network error — don't block loading
+      }
+    } else {
       running = loadLocal().find((r) => !r.clock_out) ?? null;
     }
 
@@ -59,9 +68,12 @@ export function useTimer(semesterId: string | null) {
     setLoading(false);
   }, [user, calcElapsed]);
 
+  // Ensure loading becomes false even if auth takes too long
   useEffect(() => {
-    checkRunningTimer();
-  }, [checkRunningTimer]);
+    if (user !== undefined && loading) {
+      checkRunningTimer();
+    }
+  }, [user, loading, checkRunningTimer]);
 
   useEffect(() => {
     if (state === "running" && activeRecord) {
